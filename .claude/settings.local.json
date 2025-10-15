@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(git add:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Fund project setup\n\n- 投資委員会資料フォーマットと各種ドキュメント\n- AIワークフロー設計書\n- ステップバイステップ実装ガイド\n- テスト用素材とマスキング規則\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Fund project setup\n\n- 投資委員会資料フォーマットと各種ドキュメント\n- AIワークフロー設計書\n- ステップバイステップ実装ガイド\n- テスト用素材とマスキング規則\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git config:*)",
+      "Bash(gh:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nchore: プロジェクト設定の追加\n\n- GitHubテンプレート追加（PR）\n- コントリビューティングガイドライン追加\n- 開発フロー・ブランチ戦略の定義\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []
