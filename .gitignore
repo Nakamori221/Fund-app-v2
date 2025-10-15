@@ -1,0 +1,56 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Node modules (if using any JavaScript tools)
+node_modules/
+
+# Python cache (if using Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Obsidian workspace files (optional - keep if you want to ignore workspace state)
+# .obsidian/workspace.json
+# .obsidian/workspace-mobile.json
+
+# Build outputs
+dist/
+build/
+*.exe
+*.app
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Personal notes or drafts (customize as needed)
+draft/
+scratch/
+personal_notes/
