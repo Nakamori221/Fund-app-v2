@@ -1,0 +1,708 @@
+﻿{
+    "version":  "0.1",
+    "updated_at":  "2025-10-28",
+    "fields":  {
+                   "revenue_mrr":  {
+                                       "category":  "kpi",
+                                       "section":  "kpi",
+                                       "display_name":  "Monthly Recurring Revenue (MRR)",
+                                       "value_type":  "number",
+                                       "unit":  "USD",
+                                       "period":  "monthly",
+                                       "source_priority":  [
+                                                               "CONF",
+                                                               "ANL",
+                                                               "PUB"
+                                                           ],
+                                       "disclosure_default":  "LP",
+                                       "masking_profile":  "numeric_usd",
+                                       "notes":  "Exclude one time revenue. Convert to USD using average rate when multiple currencies exist."
+                                   },
+                   "revenue_arr":  {
+                                       "category":  "kpi",
+                                       "section":  "kpi",
+                                       "display_name":  "Annual Recurring Revenue (ARR)",
+                                       "value_type":  "number",
+                                       "unit":  "USD",
+                                       "period":  "annual",
+                                       "source_priority":  [
+                                                               "CONF",
+                                                               "ANL",
+                                                               "PUB"
+                                                           ],
+                                       "disclosure_default":  "LP",
+                                       "masking_profile":  "numeric_usd",
+                                       "derived_from":  [
+                                                            "revenue_mrr"
+                                                        ],
+                                       "notes":  "ARR = MRR x 12. Usage based pricing should use trailing three month average."
+                                   },
+                   "arpa_monthly":  {
+                                        "category":  "kpi",
+                                        "section":  "kpi",
+                                        "display_name":  "Average Revenue per Account (monthly)",
+                                        "value_type":  "number",
+                                        "unit":  "USD",
+                                        "period":  "monthly",
+                                        "source_priority":  [
+                                                                "ANL",
+                                                                "CONF",
+                                                                "EXT"
+                                                            ],
+                                        "disclosure_default":  "LP",
+                                        "masking_profile":  "numeric_usd",
+                                        "derived_from":  [
+                                                             "revenue_mrr",
+                                                             "paid_accounts"
+                                                         ],
+                                        "notes":  "ARPA = MRR / paid accounts. Free tiers stay out of the denominator."
+                                    },
+                   "logo_churn_rate_monthly":  {
+                                                   "category":  "kpi",
+                                                   "section":  "kpi",
+                                                   "display_name":  "Logo churn rate (monthly)",
+                                                   "value_type":  "number",
+                                                   "unit":  "percent",
+                                                   "period":  "monthly",
+                                                   "source_priority":  [
+                                                                           "CONF",
+                                                                           "INT"
+                                                                       ],
+                                                   "disclosure_default":  "LP_NDA",
+                                                   "masking_profile":  "percent",
+                                                   "notes":  "Cap very low churn using maximum lifetime of 60 months."
+                                               },
+                   "gross_revenue_churn_rate_monthly":  {
+                                                            "category":  "kpi",
+                                                            "section":  "kpi",
+                                                            "display_name":  "Gross revenue churn rate (monthly)",
+                                                            "value_type":  "number",
+                                                            "unit":  "percent",
+                                                            "period":  "monthly",
+                                                            "source_priority":  [
+                                                                                    "CONF",
+                                                                                    "INT"
+                                                                                ],
+                                                            "disclosure_default":  "LP_NDA",
+                                                            "masking_profile":  "percent"
+                                                        },
+                   "net_dollar_retention_annual":  {
+                                                       "category":  "kpi",
+                                                       "section":  "kpi",
+                                                       "display_name":  "Net dollar retention (annual)",
+                                                       "value_type":  "number",
+                                                       "unit":  "percent",
+                                                       "period":  "annual",
+                                                       "source_priority":  [
+                                                                               "CONF",
+                                                                               "INT",
+                                                                               "ANL"
+                                                                           ],
+                                                       "disclosure_default":  "LP_NDA",
+                                                       "masking_profile":  "percent",
+                                                       "derived_from":  [
+                                                                            "expansion_mrr",
+                                                                            "contraction_mrr",
+                                                                            "churned_mrr",
+                                                                            "revenue_mrr"
+                                                                        ],
+                                                       "notes":  "NDR = (starting MRR + expansion - contraction - churned) / starting MRR."
+                                                   },
+                   "ltv_gross_profit_simple":  {
+                                                   "category":  "kpi",
+                                                   "section":  "kpi",
+                                                   "display_name":  "LTV (gross profit simple)",
+                                                   "value_type":  "number",
+                                                   "unit":  "USD",
+                                                   "period":  "lifetime",
+                                                   "source_priority":  [
+                                                                           "ANL"
+                                                                       ],
+                                                   "disclosure_default":  "IC",
+                                                   "masking_profile":  "numeric_usd",
+                                                   "derived_from":  [
+                                                                        "arpa_monthly",
+                                                                        "gross_margin_pct",
+                                                                        "logo_churn_rate_monthly"
+                                                                    ],
+                                                   "notes":  "Average lifetime = 1 / logo churn. Apply upper limit when churn is near zero."
+                                               },
+                   "cac_blended":  {
+                                       "category":  "kpi",
+                                       "section":  "kpi",
+                                       "display_name":  "Customer acquisition cost (blended)",
+                                       "value_type":  "number",
+                                       "unit":  "USD",
+                                       "period":  "snapshot",
+                                       "source_priority":  [
+                                                               "CONF",
+                                                               "ANL"
+                                                           ],
+                                       "disclosure_default":  "IC",
+                                       "masking_profile":  "numeric_usd",
+                                       "notes":  "Validate period alignment. Record assumptions when smoothing by moving average."
+                                   },
+                   "ltv_cac_ratio":  {
+                                         "category":  "kpi",
+                                         "section":  "kpi",
+                                         "display_name":  "LTV to CAC ratio",
+                                         "value_type":  "number",
+                                         "unit":  "ratio",
+                                         "period":  "snapshot",
+                                         "source_priority":  [
+                                                                 "ANL"
+                                                             ],
+                                         "disclosure_default":  "IC",
+                                         "masking_profile":  "ratio",
+                                         "derived_from":  [
+                                                              "ltv_gross_profit_simple",
+                                                              "cac_blended"
+                                                          ]
+                                     },
+                   "payback_period_months":  {
+                                                 "category":  "kpi",
+                                                 "section":  "kpi",
+                                                 "display_name":  "Payback period (months)",
+                                                 "value_type":  "number",
+                                                 "unit":  "months",
+                                                 "period":  "snapshot",
+                                                 "source_priority":  [
+                                                                         "ANL"
+                                                                     ],
+                                                 "disclosure_default":  "IC",
+                                                 "masking_profile":  "number",
+                                                 "derived_from":  [
+                                                                      "cac_blended",
+                                                                      "arpa_monthly",
+                                                                      "gross_margin_pct"
+                                                                  ]
+                                             },
+                   "paid_accounts":  {
+                                         "category":  "kpi_support",
+                                         "section":  "kpi",
+                                         "display_name":  "Paid accounts",
+                                         "value_type":  "number",
+                                         "unit":  "count",
+                                         "period":  "monthly",
+                                         "source_priority":  [
+                                                                 "CONF",
+                                                                 "INT",
+                                                                 "PUB"
+                                                             ],
+                                         "disclosure_default":  "LP_NDA",
+                                         "masking_profile":  "integer"
+                                     },
+                   "paid_users":  {
+                                      "category":  "kpi_support",
+                                      "section":  "kpi",
+                                      "display_name":  "Paid users",
+                                      "value_type":  "number",
+                                      "unit":  "count",
+                                      "period":  "monthly",
+                                      "source_priority":  [
+                                                              "CONF",
+                                                              "INT",
+                                                              "PUB"
+                                                          ],
+                                      "disclosure_default":  "LP_NDA",
+                                      "masking_profile":  "integer"
+                                  },
+                   "gross_margin_pct":  {
+                                            "category":  "kpi_support",
+                                            "section":  "kpi",
+                                            "display_name":  "Gross margin percentage",
+                                            "value_type":  "number",
+                                            "unit":  "percent",
+                                            "period":  "monthly",
+                                            "source_priority":  [
+                                                                    "CONF",
+                                                                    "INT"
+                                                                ],
+                                            "disclosure_default":  "LP_NDA",
+                                            "masking_profile":  "percent"
+                                        },
+                   "gross_margin_breakdown":  {
+                                                  "category":  "kpi_support",
+                                                  "section":  "kpi",
+                                                  "display_name":  "Gross margin breakdown",
+                                                  "value_type":  "json",
+                                                  "unit":  null,
+                                                  "period":  "monthly",
+                                                  "source_priority":  [
+                                                                          "CONF"
+                                                                      ],
+                                                  "disclosure_default":  "IC",
+                                                  "masking_profile":  "list",
+                                                  "notes":  "Store array of objects with cost_item, value_percent, and value_usd."
+                                              },
+                   "cohort_retention_monthly":  {
+                                                    "category":  "kpi_support",
+                                                    "section":  "kpi",
+                                                    "display_name":  "Cohort retention table",
+                                                    "value_type":  "json",
+                                                    "unit":  null,
+                                                    "period":  "monthly",
+                                                    "source_priority":  [
+                                                                            "CONF"
+                                                                        ],
+                                                    "disclosure_default":  "IC",
+                                                    "masking_profile":  "table",
+                                                    "notes":  "Use CSV template import. value_json.table holds month_n and retention_pct."
+                                                },
+                   "expansion_mrr":  {
+                                         "category":  "kpi_support",
+                                         "section":  "kpi",
+                                         "display_name":  "Expansion MRR",
+                                         "value_type":  "number",
+                                         "unit":  "USD",
+                                         "period":  "monthly",
+                                         "source_priority":  [
+                                                                 "CONF",
+                                                                 "INT"
+                                                             ],
+                                         "disclosure_default":  "IC",
+                                         "masking_profile":  "numeric_usd"
+                                     },
+                   "contraction_mrr":  {
+                                           "category":  "kpi_support",
+                                           "section":  "kpi",
+                                           "display_name":  "Contraction MRR",
+                                           "value_type":  "number",
+                                           "unit":  "USD",
+                                           "period":  "monthly",
+                                           "source_priority":  [
+                                                                   "CONF",
+                                                                   "INT"
+                                                               ],
+                                           "disclosure_default":  "IC",
+                                           "masking_profile":  "numeric_usd"
+                                       },
+                   "churned_mrr":  {
+                                       "category":  "kpi_support",
+                                       "section":  "kpi",
+                                       "display_name":  "Churned MRR",
+                                       "value_type":  "number",
+                                       "unit":  "USD",
+                                       "period":  "monthly",
+                                       "source_priority":  [
+                                                               "CONF",
+                                                               "INT"
+                                                           ],
+                                       "disclosure_default":  "IC",
+                                       "masking_profile":  "numeric_usd"
+                                   },
+                   "new_paid_accounts":  {
+                                             "category":  "kpi_support",
+                                             "section":  "kpi",
+                                             "display_name":  "New paid accounts",
+                                             "value_type":  "number",
+                                             "unit":  "count",
+                                             "period":  "monthly",
+                                             "source_priority":  [
+                                                                     "CONF",
+                                                                     "INT"
+                                                                 ],
+                                             "disclosure_default":  "IC",
+                                             "masking_profile":  "integer"
+                                         },
+                   "s_and_m_expense":  {
+                                           "category":  "kpi_support",
+                                           "section":  "financials",
+                                           "display_name":  "Sales and marketing expense",
+                                           "value_type":  "number",
+                                           "unit":  "USD",
+                                           "period":  "monthly",
+                                           "source_priority":  [
+                                                                   "CONF"
+                                                               ],
+                                           "disclosure_default":  "IC",
+                                           "masking_profile":  "numeric_usd"
+                                       },
+                   "thesis.statement":  {
+                                            "category":  "exec_summary",
+                                            "section":  "exec_summary",
+                                            "display_name":  "Investment thesis",
+                                            "value_type":  "string",
+                                            "source_priority":  [
+                                                                    "ANL",
+                                                                    "INT"
+                                                                ],
+                                            "disclosure_default":  "LP",
+                                            "masking_profile":  "narrative_default"
+                                        },
+                   "thesis.reason_1":  {
+                                           "category":  "exec_summary",
+                                           "section":  "exec_summary",
+                                           "display_name":  "Investment reason 1",
+                                           "value_type":  "string",
+                                           "order":  1,
+                                           "source_priority":  [
+                                                                   "ANL"
+                                                               ],
+                                           "disclosure_default":  "LP",
+                                           "masking_profile":  "narrative_default"
+                                       },
+                   "thesis.reason_2":  {
+                                           "category":  "exec_summary",
+                                           "section":  "exec_summary",
+                                           "display_name":  "Investment reason 2",
+                                           "value_type":  "string",
+                                           "order":  2,
+                                           "source_priority":  [
+                                                                   "ANL"
+                                                               ],
+                                           "disclosure_default":  "LP",
+                                           "masking_profile":  "narrative_default"
+                                       },
+                   "thesis.reason_3":  {
+                                           "category":  "exec_summary",
+                                           "section":  "exec_summary",
+                                           "display_name":  "Investment reason 3",
+                                           "value_type":  "string",
+                                           "order":  3,
+                                           "source_priority":  [
+                                                                   "ANL"
+                                                               ],
+                                           "disclosure_default":  "LP",
+                                           "masking_profile":  "narrative_default"
+                                       },
+                   "thesis.key_metrics":  {
+                                              "category":  "exec_summary",
+                                              "section":  "exec_summary",
+                                              "display_name":  "Key metric ranges",
+                                              "value_type":  "json",
+                                              "source_priority":  [
+                                                                      "ANL"
+                                                                  ],
+                                              "disclosure_default":  "LP",
+                                              "masking_profile":  "range_numeric"
+                                          },
+                   "business.problem_summary":  {
+                                                    "category":  "business",
+                                                    "section":  "business",
+                                                    "display_name":  "Problem summary",
+                                                    "value_type":  "string",
+                                                    "source_priority":  [
+                                                                            "PUB",
+                                                                            "INT"
+                                                                        ],
+                                                    "disclosure_default":  "LP",
+                                                    "masking_profile":  "narrative_default"
+                                                },
+                   "business.solution_summary":  {
+                                                     "category":  "business",
+                                                     "section":  "business",
+                                                     "display_name":  "Solution summary",
+                                                     "value_type":  "string",
+                                                     "source_priority":  [
+                                                                             "PUB"
+                                                                         ],
+                                                     "disclosure_default":  "LP",
+                                                     "masking_profile":  "narrative_default"
+                                                 },
+                   "business.model_summary":  {
+                                                  "category":  "business",
+                                                  "section":  "business",
+                                                  "display_name":  "Business model summary",
+                                                  "value_type":  "string",
+                                                  "source_priority":  [
+                                                                          "ANL",
+                                                                          "PUB"
+                                                                      ],
+                                                  "disclosure_default":  "LP",
+                                                  "masking_profile":  "narrative_default"
+                                              },
+                   "product.overview":  {
+                                            "category":  "product",
+                                            "section":  "product",
+                                            "display_name":  "Product overview",
+                                            "value_type":  "string",
+                                            "source_priority":  [
+                                                                    "PUB"
+                                                                ],
+                                            "disclosure_default":  "LP",
+                                            "masking_profile":  "narrative_default"
+                                        },
+                   "product.roadmap_key":  {
+                                               "category":  "product",
+                                               "section":  "product",
+                                               "display_name":  "Product roadmap highlights",
+                                               "value_type":  "json",
+                                               "source_priority":  [
+                                                                       "INT",
+                                                                       "CONF"
+                                                                   ],
+                                               "disclosure_default":  "LP_NDA",
+                                               "masking_profile":  "list",
+                                               "notes":  "Each entry should include milestone, target_period, and owner."
+                                           },
+                   "market.size_tam":  {
+                                           "category":  "market",
+                                           "section":  "market",
+                                           "display_name":  "Total addressable market",
+                                           "value_type":  "json",
+                                           "source_priority":  [
+                                                                   "ANL"
+                                                               ],
+                                           "disclosure_default":  "LP",
+                                           "masking_profile":  "numeric_usd"
+                                       },
+                   "market.size_sam":  {
+                                           "category":  "market",
+                                           "section":  "market",
+                                           "display_name":  "Serviceable addressable market",
+                                           "value_type":  "json",
+                                           "source_priority":  [
+                                                                   "ANL"
+                                                               ],
+                                           "disclosure_default":  "LP",
+                                           "masking_profile":  "numeric_usd"
+                                       },
+                   "market.size_som":  {
+                                           "category":  "market",
+                                           "section":  "market",
+                                           "display_name":  "Serviceable obtainable market",
+                                           "value_type":  "json",
+                                           "source_priority":  [
+                                                                   "ANL"
+                                                               ],
+                                           "disclosure_default":  "LP",
+                                           "masking_profile":  "numeric_usd"
+                                       },
+                   "market.why_now":  {
+                                          "category":  "market",
+                                          "section":  "market",
+                                          "display_name":  "Why now summary",
+                                          "value_type":  "string",
+                                          "source_priority":  [
+                                                                  "PUB",
+                                                                  "ANL"
+                                                              ],
+                                          "disclosure_default":  "LP",
+                                          "masking_profile":  "narrative_default"
+                                      },
+                   "competition.landscape_summary":  {
+                                                         "category":  "competition",
+                                                         "section":  "competition",
+                                                         "display_name":  "Competitive landscape",
+                                                         "value_type":  "string",
+                                                         "source_priority":  [
+                                                                                 "ANL"
+                                                                             ],
+                                                         "disclosure_default":  "LP",
+                                                         "masking_profile":  "narrative_default"
+                                                     },
+                   "competition.key_differentiators":  {
+                                                           "category":  "competition",
+                                                           "section":  "competition",
+                                                           "display_name":  "Key differentiators",
+                                                           "value_type":  "json",
+                                                           "source_priority":  [
+                                                                                   "ANL",
+                                                                                   "INT"
+                                                                               ],
+                                                           "disclosure_default":  "LP",
+                                                           "masking_profile":  "list"
+                                                       },
+                   "team.overview":  {
+                                         "category":  "team",
+                                         "section":  "team",
+                                         "display_name":  "Team overview",
+                                         "value_type":  "string",
+                                         "source_priority":  [
+                                                                 "PUB",
+                                                                 "CONF"
+                                                             ],
+                                         "disclosure_default":  "LP",
+                                         "masking_profile":  "narrative_default"
+                                     },
+                   "team.gap_and_plan":  {
+                                             "category":  "team",
+                                             "section":  "team",
+                                             "display_name":  "Team gaps and hiring plan",
+                                             "value_type":  "string",
+                                             "source_priority":  [
+                                                                     "INT"
+                                                                 ],
+                                             "disclosure_default":  "LP_NDA",
+                                             "masking_profile":  "narrative_default"
+                                         },
+                   "deal.investment_amount":  {
+                                                  "category":  "deal_terms",
+                                                  "section":  "deal_terms",
+                                                  "display_name":  "Investment amount",
+                                                  "value_type":  "number",
+                                                  "unit":  "USD",
+                                                  "source_priority":  [
+                                                                          "CONF"
+                                                                      ],
+                                                  "disclosure_default":  "IC",
+                                                  "masking_profile":  "numeric_usd"
+                                              },
+                   "deal.investment_amount_range":  {
+                                                        "category":  "deal_terms",
+                                                        "section":  "deal_terms",
+                                                        "display_name":  "Investment amount range",
+                                                        "value_type":  "range",
+                                                        "source_priority":  [
+                                                                                "ANL"
+                                                                            ],
+                                                        "disclosure_default":  "LP",
+                                                        "masking_profile":  "range_numeric",
+                                                        "derived_from":  [
+                                                                             "deal.investment_amount"
+                                                                         ]
+                                                    },
+                   "deal.ownership":  {
+                                          "category":  "deal_terms",
+                                          "section":  "deal_terms",
+                                          "display_name":  "Ownership percentage",
+                                          "value_type":  "number",
+                                          "unit":  "percent",
+                                          "source_priority":  [
+                                                                  "CONF"
+                                                              ],
+                                          "disclosure_default":  "IC",
+                                          "masking_profile":  "percent"
+                                      },
+                   "deal.ownership_range":  {
+                                                "category":  "deal_terms",
+                                                "section":  "deal_terms",
+                                                "display_name":  "Ownership percentage range",
+                                                "value_type":  "range",
+                                                "source_priority":  [
+                                                                        "ANL"
+                                                                    ],
+                                                "disclosure_default":  "LP",
+                                                "masking_profile":  "range_percent",
+                                                "derived_from":  [
+                                                                     "deal.ownership"
+                                                                 ]
+                                            },
+                   "deal.valuation_pre":  {
+                                              "category":  "valuation",
+                                              "section":  "valuation",
+                                              "display_name":  "Pre money valuation",
+                                              "value_type":  "number",
+                                              "unit":  "USD",
+                                              "source_priority":  [
+                                                                      "CONF"
+                                                                  ],
+                                              "disclosure_default":  "IC",
+                                              "masking_profile":  "numeric_usd"
+                                          },
+                   "deal.valuation_pre_range":  {
+                                                    "category":  "valuation",
+                                                    "section":  "valuation",
+                                                    "display_name":  "Pre money valuation range",
+                                                    "value_type":  "range",
+                                                    "source_priority":  [
+                                                                            "ANL"
+                                                                        ],
+                                                    "disclosure_default":  "LP",
+                                                    "masking_profile":  "range_numeric",
+                                                    "derived_from":  [
+                                                                         "deal.valuation_pre"
+                                                                     ]
+                                                },
+                   "deal.key_terms_summary":  {
+                                                  "category":  "deal_terms",
+                                                  "section":  "deal_terms",
+                                                  "display_name":  "Key deal terms",
+                                                  "value_type":  "string",
+                                                  "source_priority":  [
+                                                                          "CONF"
+                                                                      ],
+                                                  "disclosure_default":  "IC",
+                                                  "masking_profile":  "narrative_default"
+                                              },
+                   "financials.summary":  {
+                                              "category":  "financials",
+                                              "section":  "financials",
+                                              "display_name":  "Financial summary",
+                                              "value_type":  "string",
+                                              "source_priority":  [
+                                                                      "CONF"
+                                                                  ],
+                                              "disclosure_default":  "IC",
+                                              "masking_profile":  "narrative_default"
+                                          },
+                   "financials.forecast_highlights":  {
+                                                          "category":  "financials",
+                                                          "section":  "financials",
+                                                          "display_name":  "Forecast highlights",
+                                                          "value_type":  "string",
+                                                          "source_priority":  [
+                                                                                  "CONF",
+                                                                                  "ANL"
+                                                                              ],
+                                                          "disclosure_default":  "IC",
+                                                          "masking_profile":  "narrative_default"
+                                                      },
+                   "risk.top_list":  {
+                                         "category":  "risk",
+                                         "section":  "risk",
+                                         "display_name":  "Top risks",
+                                         "value_type":  "json",
+                                         "source_priority":  [
+                                                                 "ANL"
+                                                             ],
+                                         "disclosure_default":  "LP",
+                                         "masking_profile":  "list"
+                                     },
+                   "risk.mitigations":  {
+                                            "category":  "risk",
+                                            "section":  "risk",
+                                            "display_name":  "Risk mitigations",
+                                            "value_type":  "json",
+                                            "source_priority":  [
+                                                                    "ANL",
+                                                                    "INT"
+                                                                ],
+                                            "disclosure_default":  "LP",
+                                            "masking_profile":  "list"
+                                        },
+                   "value_creation.plan_summary":  {
+                                                       "category":  "value_creation",
+                                                       "section":  "value_creation",
+                                                       "display_name":  "Value creation plan",
+                                                       "value_type":  "string",
+                                                       "source_priority":  [
+                                                                               "ANL"
+                                                                           ],
+                                                       "disclosure_default":  "LP",
+                                                       "masking_profile":  "narrative_default"
+                                                   },
+                   "value_creation.next_milestones":  {
+                                                          "category":  "value_creation",
+                                                          "section":  "value_creation",
+                                                          "display_name":  "Next milestones",
+                                                          "value_type":  "json",
+                                                          "source_priority":  [
+                                                                                  "CONF",
+                                                                                  "INT"
+                                                                              ],
+                                                          "disclosure_default":  "LP_NDA",
+                                                          "masking_profile":  "list"
+                                                      },
+                   "appendix.key_questions":  {
+                                                  "category":  "appendix",
+                                                  "section":  "appendix",
+                                                  "display_name":  "Anticipated Q\u0026A",
+                                                  "value_type":  "json",
+                                                  "source_priority":  [
+                                                                          "ANL"
+                                                                      ],
+                                                  "disclosure_default":  "LP",
+                                                  "masking_profile":  "list"
+                                              }
+               },
+    "aliases":  {
+                    "nrr":  "net_dollar_retention_annual",
+                    "net revenue retention":  "net_dollar_retention_annual",
+                    "net dollar retention":  "net_dollar_retention_annual",
+                    "arr":  "revenue_arr",
+                    "mrr":  "revenue_mrr",
+                    "arpu":  "arpa_monthly"
+                }
+}

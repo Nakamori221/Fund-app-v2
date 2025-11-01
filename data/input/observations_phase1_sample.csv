@@ -1,0 +1,7 @@
+﻿entity_id,entity_type,section,field_id,value_type,value_number,value_string,value_json,unit,as_of,source_tag,evidence_uri,disclosure_level,confidence,notes
+company:sample_co,company,deal_terms,deal.investment_amount,number,5500000,,,,2025-09-30,ANL,,IC,0.6,"derived from provisional model"
+company:sample_co,company,business,business.problem_summary,string,,"Loan approval workflows remain manual",,,2025-09-30,PUB,,LP,,
+company:sample_co,company,kpi,revenue_arr,number,7800000,,,,2025-09-30,ANL,calc:arr_model,LP_NDA,,"Step1辞書ベース仮入力"
+company:sample_co,company,kpi,gross_margin_pct,number,78.4,,,percent,2025-09-30,INT,,LP_NDA,0.7,pending
+company:sample_co,company,market,market.size_tam,range,,,"{""min"": 150000000, ""max"": 220000000, ""unit"": ""USD""}",,2025-09-30,ANL,,LP,,"Step2構造ベース range"
+company:sample_co,company,compliance,fintech.compliance_summary,string,,"PCI DSS compliance confirmed; transaction account ABC12345 active.",,,2025-09-30,CONF,,IC,0.5,"mask account id"

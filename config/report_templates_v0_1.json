@@ -1,0 +1,336 @@
+﻿{
+  "version": "0.1",
+  "updated_at": "2025-10-28",
+  "templates": [
+    {
+      "template_id": "ic_default",
+      "name": "IC資料テンプレート v0.1",
+      "description": "投資委員会向けフル情報版。CONF/INT起点の機微情報を含む。",
+      "masking_policy_id": "lp_masking_policy_v0_1",
+      "sections": [
+        {
+          "section_id": "exec_summary",
+          "order": 10,
+          "title": "投資推奨サマリー",
+          "purpose": "投資判断の結論と主要根拠を最初に提示する。",
+          "required": true,
+          "visible": { "ic": true, "lp": true },
+          "render_type": "narrative",
+          "data_requirements": {
+            "required": [
+              "thesis.statement",
+              "deal.investment_amount",
+              "deal.ownership",
+              "deal.valuation_pre"
+            ],
+            "optional": [
+              "thesis.reason_1",
+              "thesis.reason_2",
+              "thesis.reason_3",
+              "thesis.key_metrics",
+              "deal.investment_amount_range",
+              "deal.ownership_range",
+              "deal.valuation_pre_range"
+            ]
+          },
+          "pending_policy": {
+            "type": "inline_note",
+            "text": "情報取得中：{field_id}"
+          },
+          "footnote_policy": {
+            "include_source_tag": true,
+            "include_as_of": true,
+            "include_evidence": true
+          }
+        },
+        {
+          "section_id": "company_overview",
+          "order": 20,
+          "title": "会社概要と課題・解決策",
+          "purpose": "顧客課題・ソリューション・ビジネスモデルを整理する。",
+          "required": true,
+          "visible": { "ic": true, "lp": true },
+          "render_type": "narrative",
+          "data_requirements": {
+            "required": [
+              "business.problem_summary",
+              "business.solution_summary",
+              "business.model_summary",
+              "product.overview"
+            ],
+            "optional": [
+              "product.roadmap_key"
+            ]
+          }
+        },
+        {
+          "section_id": "market_analysis",
+          "order": 30,
+          "title": "市場規模とWhy Now",
+          "purpose": "市場ポテンシャルとタイミングを示し、投資機会の妥当性を裏付ける。",
+          "required": true,
+          "visible": { "ic": true, "lp": true },
+          "render_type": "table",
+          "data_requirements": {
+            "required": [
+              "market.size_tam",
+              "market.size_sam",
+              "market.size_som"
+            ],
+            "optional": [
+              "market.why_now"
+            ]
+          }
+        },
+        {
+          "section_id": "competition",
+          "order": 40,
+          "title": "競合・差別化",
+          "purpose": "競合環境を整理し、当該企業の優位性を提示する。",
+          "required": true,
+          "visible": { "ic": true, "lp": true },
+          "render_type": "narrative",
+          "data_requirements": {
+            "required": [
+              "competition.landscape_summary"
+            ],
+            "optional": [
+              "competition.key_differentiators"
+            ]
+          }
+        },
+        {
+          "section_id": "kpi_overview",
+          "order": 50,
+          "title": "主要KPIとユニットエコノミクス",
+          "purpose": "成長と収益性の実績を定量的に示し、投資判断の根拠とする。",
+          "required": true,
+          "visible": { "ic": true, "lp": true },
+          "render_type": "table",
+          "data_requirements": {
+            "required": [
+              "revenue_arr",
+              "revenue_mrr",
+              "net_dollar_retention_annual",
+              "logo_churn_rate_monthly",
+              "ltv_cac_ratio"
+            ],
+            "optional": [
+              "arpa_monthly",
+              "ltv_gross_profit_simple",
+              "cac_blended",
+              "payback_period_months",
+              "gross_margin_pct",
+              "gross_margin_breakdown",
+              "cohort_retention_monthly",
+              "paid_accounts",
+              "paid_users"
+            ]
+          },
+          "notes": "LP版では disclosure_default が LP 以上のフィールドのみ表示される。"
+        },
+        {
+          "section_id": "financials",
+          "order": 60,
+          "title": "財務ハイライトと予測",
+          "purpose": "PL/CFの現状と将来予測を要約し、資金需要とリターンを評価する。",
+          "required": true,
+          "visible": { "ic": true, "lp": false },
+          "render_type": "narrative",
+          "data_requirements": {
+            "required": [
+              "financials.summary"
+            ],
+            "optional": [
+              "financials.forecast_highlights",
+              "s_and_m_expense"
+            ]
+          }
+        },
+        {
+          "section_id": "team",
+          "order": 70,
+          "title": "チーム・組織体制",
+          "purpose": "経営陣の適合性と組織の強み・課題を整理する。",
+          "required": true,
+          "visible": { "ic": true, "lp": true },
+          "render_type": "narrative",
+          "data_requirements": {
+            "required": [
+              "team.overview"
+            ],
+            "optional": [
+              "team.gap_and_plan"
+            ]
+          }
+        },
+        {
+          "section_id": "deal_terms",
+          "order": 80,
+          "title": "ディール条件",
+          "purpose": "投資額・持分・主要条項などディール構造を明示する。",
+          "required": true,
+          "visible": { "ic": true, "lp": false },
+          "render_type": "table",
+          "data_requirements": {
+            "required": [
+              "deal.investment_amount",
+              "deal.ownership",
+              "deal.valuation_pre",
+              "deal.key_terms_summary"
+            ],
+            "optional": [
+              "deal.investment_amount_range",
+              "deal.ownership_range",
+              "deal.valuation_pre_range"
+            ]
+          }
+        },
+        {
+          "section_id": "valuation_return",
+          "order": 90,
+          "title": "バリュエーションとリターン",
+          "purpose": "バリュエーション根拠とリターン見込みを示す。",
+          "required": true,
+          "visible": { "ic": true, "lp": true },
+          "render_type": "table",
+          "data_requirements": {
+            "required": [
+              "deal.valuation_pre",
+              "ltv_cac_ratio"
+            ],
+            "optional": [
+              "deal.valuation_pre_range",
+              "ltv_gross_profit_simple",
+              "payback_period_months"
+            ]
+          }
+        },
+        {
+          "section_id": "risk_mitigation",
+          "order": 100,
+          "title": "リスクと対応策",
+          "purpose": "主な懸念点とその緩和策を整理し、投資判断の弱点を把握する。",
+          "required": true,
+          "visible": { "ic": true, "lp": true },
+          "render_type": "table",
+          "data_requirements": {
+            "required": [
+              "risk.top_list"
+            ],
+            "optional": [
+              "risk.mitigations"
+            ]
+          }
+        },
+        {
+          "section_id": "value_creation",
+          "order": 110,
+          "title": "ファンドの価値提供計画",
+          "purpose": "投資後の支援内容とマイルストーンを提示する。",
+          "required": true,
+          "visible": { "ic": true, "lp": true },
+          "render_type": "narrative",
+          "data_requirements": {
+            "required": [
+              "value_creation.plan_summary"
+            ],
+            "optional": [
+              "value_creation.next_milestones"
+            ]
+          }
+        },
+        {
+          "section_id": "appendix",
+          "order": 120,
+          "title": "想定Q&A／補足",
+          "purpose": "想定質問と回答、追加データを格納する。",
+          "required": false,
+          "visible": { "ic": true, "lp": true },
+          "render_type": "list",
+          "data_requirements": {
+            "required": [],
+            "optional": [
+              "appendix.key_questions"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "template_id": "lp_default",
+      "name": "LP開示テンプレート v0.1",
+      "description": "外部投資家向けに機微情報をマスクしたバージョン。",
+      "masking_policy_id": "lp_masking_policy_v0_1",
+      "sections": [
+        {
+          "ref": "exec_summary",
+          "data_requirements_override": {
+            "required": [
+              "thesis.statement",
+              "deal.investment_amount_range",
+              "deal.ownership_range",
+              "deal.valuation_pre_range"
+            ],
+            "optional": [
+              "thesis.reason_1",
+              "thesis.reason_2",
+              "thesis.reason_3",
+              "thesis.key_metrics"
+            ]
+          }
+        },
+        { "ref": "company_overview" },
+        { "ref": "market_analysis" },
+        { "ref": "competition" },
+        {
+          "ref": "kpi_overview",
+          "data_requirements_override": {
+            "required": [
+              "revenue_arr",
+              "revenue_mrr",
+              "net_dollar_retention_annual"
+            ],
+            "optional": [
+              "logo_churn_rate_monthly",
+              "ltv_cac_ratio",
+              "thesis.key_metrics"
+            ]
+          }
+        },
+        {
+          "ref": "team",
+          "data_requirements_override": {
+            "required": [],
+            "optional": [
+              "team.overview"
+            ]
+          }
+        },
+        {
+          "ref": "valuation_return",
+          "data_requirements_override": {
+            "required": [
+              "deal.valuation_pre_range"
+            ],
+            "optional": [
+              "ltv_cac_ratio",
+              "thesis.key_metrics"
+            ]
+          }
+        },
+        { "ref": "risk_mitigation" },
+        {
+          "ref": "value_creation",
+          "data_requirements_override": {
+            "required": [
+              "value_creation.plan_summary"
+            ],
+            "optional": []
+          }
+        },
+        { "ref": "appendix" }
+      ]
+    }
+  ]
+}
