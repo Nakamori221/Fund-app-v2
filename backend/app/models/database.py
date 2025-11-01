@@ -52,6 +52,9 @@ class User(Base):
     reports = relationship(
         "Report", back_populates="created_by_user", foreign_keys="Report.created_by"
     )
+    audit_logs = relationship(
+        "AuditLog", back_populates="user", foreign_keys="AuditLog.user_id"
+    )
 
     def __repr__(self):
         return f"<User {self.email} ({self.role})>"
@@ -221,6 +224,9 @@ class AuditLog(Base):
     ip_address = Column(String(45), nullable=True)  # IPv4 or IPv6
     user_agent = Column(String(1000), nullable=True)
     extra_data = Column(JSON, default={}, nullable=False)
+
+    # Relationships
+    user = relationship("User", back_populates="audit_logs")
 
     def __repr__(self):
         return f"<AuditLog {self.action} on {self.resource_type} {self.resource_id}>"

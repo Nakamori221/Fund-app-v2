@@ -4,7 +4,8 @@ from uuid import UUID
 from typing import Optional, List, Tuple, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
+from sqlalchemy.orm import selectinload
 from fastapi import Request
 
 from app.models.database import User
@@ -191,6 +192,7 @@ class UserService:
         role: UserRole,
         skip: int = 0,
         limit: int = 100,
+        include_audit_logs: bool = False,
     ) -> tuple[list[User], int]:
         """
         Get all users with a specific role.
@@ -200,24 +202,30 @@ class UserService:
         - role: User role to filter by
         - skip: Number of records to skip
         - limit: Number of records to return
+        - include_audit_logs: Whether to eager load audit logs (Eager Loading optimization)
 
         **Returns**:
         - Tuple of (users list, total count)
         """
         # Get total count
-        count_stmt = select(User).where(User.role == role)
-        count_result = await db.execute(count_stmt)
-        total = len(count_result.fetchall())
+        count_stmt = select(func.count()).select_from(User).where(User.role == role)
+        total = await db.scalar(count_stmt)
 
-        # Get paginated results
+        # Get paginated results with Eager Loading
         stmt = (
             select(User)
             .where(User.role == role)
+            .order_by(User.created_at.desc())
             .offset(skip)
             .limit(limit)
         )
+
+        # Add Eager Loading if requested
+        if include_audit_logs:
+            stmt = stmt.options(selectinload(User.audit_logs))
+
         result = await db.execute(stmt)
-        users = result.scalars().all()
+        users = result.scalars().unique().all() if include_audit_logs else result.scalars().all()
 
         return users, total
 
@@ -249,9 +257,10 @@ class UserService:
         role_filter: Optional[UserRole] = None,
         is_active_filter: Optional[bool] = None,
         search: Optional[str] = None,
+        include_audit_logs: bool = False,
     ) -> Tuple[List[User], int]:
         """
-        ユーザー一覧取得（RBAC対応）
+        ユーザー一覧取得（RBAC対応、Eager Loading対応）
 
         **Parameters**:
         - db: Database session
@@ -262,6 +271,7 @@ class UserService:
         - role_filter: ロール絞り込み
         - is_active_filter: アクティブ状態絞り込み
         - search: 名前・メール検索
+        - include_audit_logs: Whether to eager load audit logs (Eager Loading optimization)
 
         **Returns**:
         - (ユーザーリスト, 総数)
@@ -303,18 +313,25 @@ class UserService:
             )
 
         # 総数取得
-        count_stmt = select(User).where(and_(*filters)) if filters else select(User)
-        count_result = await db.execute(count_stmt)
-        total = len(count_result.fetchall())
+        count_stmt = select(func.count()).select_from(User)
+        if filters:
+            count_stmt = count_stmt.where(and_(*filters))
+        total = await db.scalar(count_stmt)
 
-        # ページネーション結果取得
-        query = select(User).offset(skip).limit(limit)
+        # ページネーション結果取得（Eager Loading対応）
+        query = select(User)
         if filters:
             query = query.where(and_(*filters))
         query = query.order_by(User.created_at.desc())
 
+        # Add Eager Loading if requested
+        if include_audit_logs:
+            query = query.options(selectinload(User.audit_logs))
+
+        query = query.offset(skip).limit(limit)
+
         result = await db.execute(query)
-        users = result.scalars().all()
+        users = result.scalars().unique().all() if include_audit_logs else result.scalars().all()
 
         return users, total
 
