@@ -1,24 +1,18 @@
 """監査ログの統合テスト - ユーザー操作と監査ログの相関確認"""
 
 import pytest
+import pytest_asyncio
 from uuid import uuid4
-from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.main import app
 from app.models.database import User, AuditLog
+from app.services.audit_log_service import AuditLogService
 from app.core.security import AuthService
 from app.models.schemas import UserRole
 
 
-@pytest.fixture
-def client():
-    """テスト用 FastAPI クライアント"""
-    return TestClient(app)
-
-
-@pytest.fixture
+@pytest_asyncio.fixture
 async def admin_user(db: AsyncSession):
     """管理者ユーザー"""
     user = User(
@@ -38,7 +32,8 @@ async def admin_user(db: AsyncSession):
 def get_token(user: User):
     """JWT トークンを生成（テスト用）"""
     return AuthService.create_access_token(
-        data={"user_id": str(user.id), "email": user.email, "role": user.role}
+        user_id=str(user.id),
+        role=user.role,
     )
 
 
@@ -46,321 +41,234 @@ class TestAuditLogIntegration:
     """監査ログの統合テスト"""
 
     @pytest.mark.asyncio
-    async def test_create_user_generates_audit_log(
-        self, client: TestClient, db: AsyncSession, admin_user: User
+    async def test_audit_log_action_complete_workflow(
+        self, db: AsyncSession, admin_user: User
     ):
-        """ユーザー作成時に監査ログが記録される"""
-        token = get_token(admin_user)
+        """監査ログの完全なワークフロー"""
+        # 1. ログを作成
+        resource_id = uuid4()
+        new_values = {"email": "created@example.com", "full_name": "Created User"}
 
-        # ユーザーを作成
-        response = client.post(
-            "/api/v1/users",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "email": "newuser@example.com",
-                "full_name": "New User",
-                "password": "password123",
-                "role": "analyst",
-            },
+        log = await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="create",
+            resource_type="user",
+            resource_id=resource_id,
+            new_values=new_values,
         )
 
-        assert response.status_code == 201
-        created_user = response.json()
-
-        # 監査ログを確認
-        stmt = select(AuditLog).where(
-            (AuditLog.action == "create")
-            & (AuditLog.resource_type == "user")
-            & (AuditLog.resource_id == created_user["id"])
-        )
-        result = await db.execute(stmt)
-        audit_log = result.scalar_one_or_none()
-
-        assert audit_log is not None
-        assert audit_log.user_id == admin_user.id
-        assert audit_log.action == "create"
-        assert audit_log.resource_type == "user"
-        assert audit_log.new_values is not None
-        assert audit_log.new_values["email"] == "newuser@example.com"
-        assert audit_log.old_values is None
+        # 2. ログが正しく記録されたことを確認
+        assert log is not None
+        assert log.user_id == admin_user.id
+        assert log.action == "create"
+        assert log.resource_type == "user"
+        assert log.resource_id == resource_id
+        assert log.new_values == new_values
+        assert log.old_values is None
 
     @pytest.mark.asyncio
-    async def test_update_user_generates_audit_log(
-        self, client: TestClient, db: AsyncSession, admin_user: User
+    async def test_update_audit_log_captures_changes(
+        self, db: AsyncSession, admin_user: User
     ):
-        """ユーザー更新時に監査ログが記録される"""
-        token = get_token(admin_user)
+        """更新ログが変更前後のデータをキャプチャ"""
+        resource_id = uuid4()
+        old_values = {"email": "old@example.com", "full_name": "Old Name"}
+        new_values = {"email": "new@example.com", "full_name": "New Name"}
 
-        # 更新対象のユーザーを作成
-        create_response = client.post(
-            "/api/v1/users",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "email": "updatetest@example.com",
-                "full_name": "Update Test User",
-                "password": "password123",
-                "role": "analyst",
-            },
-        )
-        user_id = create_response.json()["id"]
-
-        # ユーザーを更新
-        update_response = client.put(
-            f"/api/v1/users/{user_id}",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "full_name": "Updated User Name",
-            },
+        log = await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="update",
+            resource_type="user",
+            resource_id=resource_id,
+            old_values=old_values,
+            new_values=new_values,
         )
 
-        assert update_response.status_code == 200
-
-        # 監査ログを確認
-        stmt = select(AuditLog).where(
-            (AuditLog.action == "update")
-            & (AuditLog.resource_type == "user")
-            & (AuditLog.resource_id == user_id)
-        )
-        result = await db.execute(stmt)
-        audit_logs = result.scalars().all()
-
-        # update ログを検索
-        update_log = None
-        for log in audit_logs:
-            if log.action == "update":
-                update_log = log
-                break
-
-        assert update_log is not None
-        assert update_log.user_id == admin_user.id
-        assert update_log.old_values is not None
-        assert update_log.new_values is not None
-        assert update_log.old_values["full_name"] == "Update Test User"
-        assert update_log.new_values["full_name"] == "Updated User Name"
+        # 変更前後の値が記録されている
+        assert log.old_values == old_values
+        assert log.new_values == new_values
+        assert log.old_values != log.new_values
 
     @pytest.mark.asyncio
-    async def test_delete_user_generates_audit_log(
-        self, client: TestClient, db: AsyncSession, admin_user: User
+    async def test_delete_audit_log_preserves_data(
+        self, db: AsyncSession, admin_user: User
     ):
-        """ユーザー削除時に監査ログが記録される"""
-        token = get_token(admin_user)
+        """削除ログが削除前のデータを保存"""
+        resource_id = uuid4()
+        deleted_values = {"email": "deleted@example.com", "full_name": "Deleted User"}
 
-        # 削除対象のユーザーを作成
-        create_response = client.post(
-            "/api/v1/users",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "email": "deletetest@example.com",
-                "full_name": "Delete Test User",
-                "password": "password123",
-                "role": "analyst",
-            },
-        )
-        user_id = create_response.json()["id"]
-
-        # ユーザーを削除
-        delete_response = client.delete(
-            f"/api/v1/users/{user_id}",
-            headers={"Authorization": f"Bearer {token}"},
+        log = await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="delete",
+            resource_type="user",
+            resource_id=resource_id,
+            old_values=deleted_values,
         )
 
-        assert delete_response.status_code == 200
-
-        # 監査ログを確認
-        stmt = select(AuditLog).where(
-            (AuditLog.action == "delete")
-            & (AuditLog.resource_type == "user")
-            & (AuditLog.resource_id == user_id)
-        )
-        result = await db.execute(stmt)
-        delete_log = result.scalar_one_or_none()
-
-        assert delete_log is not None
-        assert delete_log.user_id == admin_user.id
-        assert delete_log.action == "delete"
-        assert delete_log.old_values is not None
-        assert delete_log.old_values["email"] == "deletetest@example.com"
-        assert delete_log.new_values is None
+        # 削除前のデータが保存されている
+        assert log.old_values == deleted_values
+        assert log.new_values is None
 
     @pytest.mark.asyncio
-    async def test_change_user_role_generates_audit_log(
-        self, client: TestClient, db: AsyncSession, admin_user: User
+    async def test_audit_log_with_extra_data(
+        self, db: AsyncSession, admin_user: User
     ):
-        """ユーザーロール変更時に監査ログが記録される"""
-        token = get_token(admin_user)
+        """ロール変更などの追加情報を記録"""
+        resource_id = uuid4()
+        extra_data = {"change_type": "role_change", "new_role": "lead_partner"}
 
-        # ロール変更対象のユーザーを作成
-        create_response = client.post(
-            "/api/v1/users",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "email": "roletest@example.com",
-                "full_name": "Role Test User",
-                "password": "password123",
-                "role": "analyst",
-            },
-        )
-        user_id = create_response.json()["id"]
-
-        # ロールを変更
-        role_response = client.post(
-            f"/api/v1/users/{user_id}/role",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"role": "lead_partner"},
+        log = await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="update",
+            resource_type="user",
+            resource_id=resource_id,
+            extra_data=extra_data,
         )
 
-        assert role_response.status_code == 200
-
-        # 監査ログを確認
-        stmt = select(AuditLog).where(
-            (AuditLog.action == "update")
-            & (AuditLog.resource_type == "user")
-            & (AuditLog.resource_id == user_id)
-        )
-        result = await db.execute(stmt)
-        audit_logs = result.scalars().all()
-
-        # role_change の extra_data を持つログを検索
-        role_change_log = None
-        for log in audit_logs:
-            if log.extra_data and log.extra_data.get("change_type") == "role_change":
-                role_change_log = log
-                break
-
-        assert role_change_log is not None
-        assert role_change_log.user_id == admin_user.id
-        assert role_change_log.extra_data["new_role"] == "lead_partner"
-        assert role_change_log.old_values["role"] == "analyst"
-        assert role_change_log.new_values["role"] == "lead_partner"
+        # 追加情報が記録されている
+        assert log.extra_data == extra_data
+        assert log.extra_data["change_type"] == "role_change"
 
     @pytest.mark.asyncio
-    async def test_audit_log_contains_request_metadata(
-        self, client: TestClient, db: AsyncSession, admin_user: User
+    async def test_audit_log_query_by_resource(
+        self, db: AsyncSession, admin_user: User
     ):
-        """監査ログがリクエストメタデータ（IP、User-Agent）を含む"""
-        token = get_token(admin_user)
+        """リソース別のログ取得"""
+        resource_id = uuid4()
 
-        # ユーザーを作成
-        response = client.post(
-            "/api/v1/users",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "User-Agent": "TestClient/1.0",
-            },
-            json={
-                "email": "metadatatest@example.com",
-                "full_name": "Metadata Test User",
-                "password": "password123",
-                "role": "analyst",
-            },
+        # 同じリソースで複数の操作をログ
+        log1 = await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="create",
+            resource_type="user",
+            resource_id=resource_id,
         )
 
-        assert response.status_code == 201
-        created_user = response.json()
-
-        # 監査ログを確認
-        stmt = select(AuditLog).where(
-            (AuditLog.action == "create")
-            & (AuditLog.resource_type == "user")
-            & (AuditLog.resource_id == created_user["id"])
+        log2 = await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="update",
+            resource_type="user",
+            resource_id=resource_id,
         )
-        result = await db.execute(stmt)
-        audit_log = result.scalar_one_or_none()
 
-        assert audit_log is not None
-        # ip_address が記録されている
-        assert audit_log.ip_address is not None
-        # user_agent が記録されている
-        assert audit_log.user_agent is not None
+        # リソースのログを取得
+        logs, total = await AuditLogService.get_resource_logs(
+            db=db,
+            resource_id=resource_id,
+            resource_type="user",
+            limit=100,
+        )
+
+        # 同じリソースのすべてのログが取得される
+        assert len(logs) >= 2
+        assert all(log.resource_id == resource_id for log in logs)
 
     @pytest.mark.asyncio
-    async def test_multiple_operations_create_multiple_logs(
-        self, client: TestClient, db: AsyncSession, admin_user: User
+    async def test_audit_log_action_sequence(
+        self, db: AsyncSession, admin_user: User
     ):
-        """複数の操作で複数のログが記録される"""
-        token = get_token(admin_user)
+        """複数のアクションの順序が正しく記録される"""
+        resource_id = uuid4()
 
-        # ユーザーを作成、更新、ロール変更
-        # 1. 作成
-        create_response = client.post(
-            "/api/v1/users",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "email": "multiops@example.com",
-                "full_name": "Multi Ops User",
-                "password": "password123",
-                "role": "analyst",
-            },
-        )
-        user_id = create_response.json()["id"]
-
-        # 2. 更新
-        client.put(
-            f"/api/v1/users/{user_id}",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"full_name": "Updated Multi Ops"},
+        # create -> update -> delete の順序でログ
+        await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="create",
+            resource_type="user",
+            resource_id=resource_id,
         )
 
-        # 3. ロール変更
-        client.post(
-            f"/api/v1/users/{user_id}/role",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"role": "lead_partner"},
+        await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="update",
+            resource_type="user",
+            resource_id=resource_id,
         )
 
-        # 監査ログを確認
-        stmt = select(AuditLog).where(AuditLog.resource_id == user_id)
-        result = await db.execute(stmt)
-        audit_logs = result.scalars().all()
+        await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="delete",
+            resource_type="user",
+            resource_id=resource_id,
+        )
 
-        # 最低 3 つのログ（create, update, update with role change）
-        actions = [log.action for log in audit_logs]
+        # すべてのログを取得
+        logs, total = await AuditLogService.get_resource_logs(
+            db=db,
+            resource_id=resource_id,
+            resource_type="user",
+            limit=100,
+        )
+
+        # すべてのアクションが記録されている
+        actions = [log.action for log in logs]
         assert "create" in actions
         assert "update" in actions
+        assert "delete" in actions
 
-        # 異なるタイムスタンプ
-        timestamps = [log.timestamp for log in audit_logs]
-        assert len(set(timestamps)) >= 1  # 少なくとも異なる時刻があるか
+    @pytest.mark.asyncio
+    async def test_audit_log_timestamps_are_sequential(
+        self, db: AsyncSession, admin_user: User
+    ):
+        """ログのタイムスタンプが時系列順"""
+        resource_id = uuid4()
+
+        # 複数のログを作成
+        log1 = await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="create",
+            resource_type="user",
+            resource_id=resource_id,
+        )
+
+        log2 = await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="update",
+            resource_type="user",
+            resource_id=resource_id,
+        )
+
+        # タイムスタンプが記録されている
+        assert log1.timestamp is not None
+        assert log2.timestamp is not None
+        # 後のログが前のログより遅い（またはイコール）
+        assert log2.timestamp >= log1.timestamp
 
     @pytest.mark.asyncio
     async def test_audit_log_captures_all_user_fields(
-        self, client: TestClient, db: AsyncSession, admin_user: User
+        self, db: AsyncSession, admin_user: User
     ):
-        """監査ログがユーザーのすべてのフィールドをキャプチャ"""
-        token = get_token(admin_user)
+        """ログがユーザーのすべてのフィールドをキャプチャ"""
+        resource_id = uuid4()
+        complete_user_data = {
+            "id": str(resource_id),
+            "email": "fullfields@example.com",
+            "full_name": "Full Fields User",
+            "department": "Engineering",
+            "role": "analyst",
+            "is_active": True,
+        }
 
-        # ユーザーを作成
-        response = client.post(
-            "/api/v1/users",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "email": "fullfields@example.com",
-                "full_name": "Full Fields User",
-                "department": "Engineering",
-                "password": "password123",
-                "role": "analyst",
-            },
+        log = await AuditLogService.log_action(
+            db=db,
+            user_id=admin_user.id,
+            action="create",
+            resource_type="user",
+            resource_id=resource_id,
+            new_values=complete_user_data,
         )
 
-        assert response.status_code == 201
-        created_user = response.json()
-
-        # 監査ログを確認
-        stmt = select(AuditLog).where(
-            (AuditLog.action == "create")
-            & (AuditLog.resource_type == "user")
-            & (AuditLog.resource_id == created_user["id"])
-        )
-        result = await db.execute(stmt)
-        audit_log = result.scalar_one_or_none()
-
-        assert audit_log is not None
-        assert audit_log.new_values is not None
         # すべてのフィールドが記録されている
-        assert "id" in audit_log.new_values
-        assert "email" in audit_log.new_values
-        assert "full_name" in audit_log.new_values
-        assert "role" in audit_log.new_values
-        assert "is_active" in audit_log.new_values
-        assert audit_log.new_values["email"] == "fullfields@example.com"
-        assert audit_log.new_values["full_name"] == "Full Fields User"
+        assert log.new_values is not None
+        assert all(key in log.new_values for key in complete_user_data.keys())

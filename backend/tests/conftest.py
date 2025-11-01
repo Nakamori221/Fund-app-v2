@@ -121,6 +121,12 @@ async def test_user_admin(test_db: AsyncSession):
 
 
 @pytest_asyncio.fixture
+async def db(test_db: AsyncSession):
+    """Alias for test_db for convenience"""
+    return test_db
+
+
+@pytest_asyncio.fixture
 async def test_case(test_db: AsyncSession, test_user_analyst):
     """Create test case"""
     test_case = Case(

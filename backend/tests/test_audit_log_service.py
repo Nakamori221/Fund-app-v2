@@ -1,6 +1,7 @@
 """監査ログサービスのテストスイート"""
 
 import pytest
+import pytest_asyncio
 from datetime import datetime, timedelta
 from uuid import uuid4, UUID
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +11,7 @@ from app.services.audit_log_service import AuditLogService
 from app.models.schemas import UserRole
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_user(db: AsyncSession):
     """テスト用ユーザーを作成"""
     from app.core.security import AuthService
@@ -29,7 +30,7 @@ async def test_user(db: AsyncSession):
     return user
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def another_user(db: AsyncSession):
     """別のテスト用ユーザーを作成"""
     from app.core.security import AuthService
