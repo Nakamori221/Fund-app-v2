@@ -13,6 +13,7 @@ from app.models.schemas import UserCreate, UserRole, UserUpdate, UserResponse
 from app.core.security import AuthService
 from app.core.errors import ValidationException, ConflictException, NotFoundException, AuthorizationException
 from app.services.audit_log_service import AuditLogService
+from app.services.pagination_service import PaginationService
 
 
 class UserService:
@@ -230,6 +231,49 @@ class UserService:
         return users, total
 
     @staticmethod
+    async def get_users_by_role_with_cursor(
+        db: AsyncSession,
+        role: UserRole,
+        cursor: Optional[str] = None,
+        limit: int = 20,
+        include_audit_logs: bool = False,
+    ) -> Tuple[List[User], Optional[str], bool]:
+        """
+        Get all users with a specific role using Cursor-based Pagination.
+
+        **Parameters**:
+        - db: Database session
+        - role: User role to filter by
+        - cursor: Pagination cursor (None for first page)
+        - limit: Number of records to return (1-100)
+        - include_audit_logs: Whether to eager load audit logs (Eager Loading optimization)
+
+        **Returns**:
+        - Tuple of (users list, next_cursor, has_more)
+
+        **Features**:
+        - O(limit) time complexity regardless of dataset size
+        - Consistent ordering even with data modifications
+        """
+        # Build base query
+        query = select(User).where(User.role == role).order_by(User.created_at.desc(), User.id)
+
+        # Add Eager Loading if requested
+        if include_audit_logs:
+            query = query.options(selectinload(User.audit_logs))
+
+        # Execute cursor-based pagination
+        users, next_cursor, has_more = await PaginationService.paginate(
+            db=db,
+            query=query,
+            cursor=cursor,
+            limit=limit,
+            order_by_created_at=True,
+        )
+
+        return users, next_cursor, has_more
+
+    @staticmethod
     async def verify_user_exists(
         db: AsyncSession,
         user_id: UUID,
@@ -334,6 +378,97 @@ class UserService:
         users = result.scalars().unique().all() if include_audit_logs else result.scalars().all()
 
         return users, total
+
+    @staticmethod
+    async def list_users_with_cursor(
+        db: AsyncSession,
+        requester_id: UUID,
+        requester_role: UserRole,
+        cursor: Optional[str] = None,
+        limit: int = 20,
+        role_filter: Optional[UserRole] = None,
+        is_active_filter: Optional[bool] = None,
+        search: Optional[str] = None,
+        include_audit_logs: bool = False,
+    ) -> Tuple[List[User], Optional[str], bool]:
+        """
+        ユーザー一覧取得（Cursor-based Pagination対応、RBAC対応）
+
+        **Parameters**:
+        - db: Database session
+        - requester_id: リクエスター ID
+        - requester_role: リクエスターロール
+        - cursor: ページングカーソル（Noneで最初のページ）
+        - limit: 取得数（1-100）
+        - role_filter: ロール絞り込み
+        - is_active_filter: アクティブ状態絞り込み
+        - search: 名前・メール検索
+        - include_audit_logs: Eager Loading を有効化するか
+
+        **Returns**:
+        - (ユーザーリスト, 次ページカーソル, さらにページがあるか)
+
+        **Features**:
+        - O(limit) 時間複雑度（データセットサイズに無依存）
+        - 一貫した順序付け（作成日時 DESC、その後ID）
+        - RBAC に基づくフィルタリング
+
+        **RBAC規則**:
+        - ANALYST: 自分自身のみ
+        - LEAD_PARTNER: 同じロール以下
+        - IC_MEMBER: すべてのユーザー
+        - ADMIN: すべてのユーザー
+        """
+        filters = []
+
+        # RBAC フィルタリング
+        if requester_role == UserRole.ANALYST:
+            filters.append(User.id == requester_id)
+        elif requester_role == UserRole.LEAD_PARTNER:
+            filters.append(
+                or_(
+                    User.id == requester_id,
+                    User.role == UserRole.ANALYST,
+                )
+            )
+        # IC_MEMBER, ADMIN: フィルタなし（全ユーザー表示）
+
+        # その他フィルタ
+        if role_filter:
+            filters.append(User.role == role_filter)
+
+        if is_active_filter is not None:
+            filters.append(User.is_active == is_active_filter)
+
+        if search:
+            search_pattern = f"%{search}%"
+            filters.append(
+                or_(
+                    User.full_name.ilike(search_pattern),
+                    User.email.ilike(search_pattern),
+                )
+            )
+
+        # ベースクエリの構築
+        query = select(User)
+        if filters:
+            query = query.where(and_(*filters))
+        query = query.order_by(User.created_at.desc(), User.id)
+
+        # Eager Loading オプション
+        if include_audit_logs:
+            query = query.options(selectinload(User.audit_logs))
+
+        # Cursor-based pagination を実行
+        users, next_cursor, has_more = await PaginationService.paginate(
+            db=db,
+            query=query,
+            cursor=cursor,
+            limit=limit,
+            order_by_created_at=True,
+        )
+
+        return users, next_cursor, has_more
 
     @staticmethod
     async def delete_user(
