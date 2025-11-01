@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.core.security import AuthService, get_current_user
-from app.core.errors import AuthenticationException, ValidationException
+from app.core.errors import AuthenticationException, ValidationException, ConflictException, NotFoundException
 from app.models.schemas import (
     LoginRequest,
     TokenResponse,
@@ -14,6 +14,7 @@ from app.models.schemas import (
     UserCreate,
     UserResponse,
 )
+from app.services.user_service import UserService
 
 
 router = APIRouter()
@@ -43,13 +44,24 @@ async def register(
     - 409: User already exists with this email
     - 500: Internal server error
     """
-    # TODO: Implement user creation logic
-    # - Check if email already exists
-    # - Hash password using AuthService.hash_password()
-    # - Create user record in database
-    # - Return user response
+    try:
+        # Create user via service
+        user = await UserService.create_user(db, user_data)
 
-    raise NotImplementedError("User registration endpoint not yet implemented")
+        return UserResponse(
+            id=str(user.id),
+            email=user.email,
+            full_name=user.full_name,
+            role=user.role,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            is_active=user.is_active,
+        )
+
+    except ValidationException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except ConflictException as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @router.post(
@@ -74,13 +86,34 @@ async def login(
     - 401: Invalid credentials
     - 500: Internal server error
     """
-    # TODO: Implement login logic
-    # - Look up user by email in database
-    # - Verify password using AuthService.verify_password()
-    # - Generate tokens using AuthService.create_access_token() and create_refresh_token()
-    # - Return token response
+    # Authenticate user
+    user = await UserService.authenticate_user(
+        db,
+        credentials.email,
+        credentials.password,
+    )
 
-    raise NotImplementedError("Login endpoint not yet implemented")
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    # Generate tokens
+    access_token = AuthService.create_access_token(str(user.id), user.role.value)
+    refresh_token = AuthService.create_refresh_token(str(user.id), user.role.value)
+
+    # Get token expiry time
+    from app.config import get_settings
+    settings = get_settings()
+    expires_in = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=expires_in,
+    )
 
 
 @router.post(
@@ -105,13 +138,43 @@ async def refresh_token(
     - 401: Invalid or expired refresh token
     - 500: Internal server error
     """
-    # TODO: Implement token refresh logic
-    # - Verify refresh token using AuthService.verify_token()
-    # - Extract user_id and role from token payload
-    # - Generate new access and refresh tokens
-    # - Return token response
+    try:
+        # Verify refresh token
+        payload = AuthService.verify_token(request.refresh_token)
 
-    raise NotImplementedError("Token refresh endpoint not yet implemented")
+        # Extract user_id and role
+        user_id = payload.get("sub")
+        role = payload.get("role")
+        token_type = payload.get("type")
+
+        # Verify it's a refresh token
+        if token_type != "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type",
+            )
+
+        # Generate new tokens
+        access_token = AuthService.create_access_token(user_id, role)
+        new_refresh_token = AuthService.create_refresh_token(user_id, role)
+
+        # Get token expiry time
+        from app.config import get_settings
+        settings = get_settings()
+        expires_in = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer",
+            expires_in=expires_in,
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
 
 
 @router.get(
@@ -121,6 +184,7 @@ async def refresh_token(
 )
 async def get_current_user_info(
     current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get current authenticated user information.
@@ -132,14 +196,20 @@ async def get_current_user_info(
     - 401: Not authenticated
     - 500: Internal server error
     """
-    # TODO: Implement current user endpoint
-    # - Return user information from token payload
-    # - Include user permissions based on role
+    # Get full user information from database
+    from uuid import UUID
+    user = await UserService.get_user_by_id(db, UUID(current_user.get("user_id")))
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
 
     return CurrentUserResponse(
-        id=current_user.get("user_id"),
-        email=current_user.get("email", ""),
-        full_name=current_user.get("full_name", ""),
-        role=current_user.get("role"),
+        id=str(user.id),
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role,
         permissions=current_user.get("permissions", []),
     )

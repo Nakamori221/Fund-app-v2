@@ -1,20 +1,22 @@
 """Cases API endpoints"""
 
 from typing import List
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.security import get_current_user, require_role
-from app.core.errors import NotFoundException, ValidationException
+from app.core.security import get_current_user
+from app.core.errors import NotFoundException, ValidationException, AuthorizationException
 from app.models.schemas import (
     CaseResponse,
     CaseCreate,
     CaseUpdate,
     PaginatedResponse,
-    PaginationParams,
     CaseStatus,
 )
+from app.models.database import Case
+from app.services.case_service import CaseService
 
 
 router = APIRouter()
@@ -51,20 +53,53 @@ async def list_cases(
     - 401: Not authenticated
     - 500: Internal server error
     """
-    # TODO: Implement case listing logic
-    # - Check user role and apply permission filters
-    # - Filter by status if provided
-    # - Apply pagination (skip, limit)
-    # - Return paginated response with total count
-    # - Respect RBAC permission rules from RBAC_SPECIFICATION.md
+    try:
+        # Get cases from service with RBAC filtering
+        user_id = UUID(current_user.get("user_id"))
+        user_role = current_user.get("role")
 
-    return PaginatedResponse(
-        data=[],
-        total=0,
-        skip=skip,
-        limit=limit,
-        has_more=False,
-    )
+        cases, total = await CaseService.get_cases(
+            db,
+            user_id,
+            user_role,
+            skip=skip,
+            limit=limit,
+            status_filter=status_filter,
+        )
+
+        # Convert to response models
+        case_responses = [
+            CaseResponse(
+                id=str(case.id),
+                title=case.title,
+                description=case.description,
+                company_name=case.company_name,
+                sector=case.sector,
+                status=case.status,
+                created_by=str(case.created_by),
+                created_at=case.created_at,
+                updated_at=case.updated_at,
+                observation_count=len(case.observations),
+                metadata=case.metadata,
+            )
+            for case in cases
+        ]
+
+        has_more = (skip + limit) < total
+
+        return PaginatedResponse(
+            data=case_responses,
+            total=total,
+            skip=skip,
+            limit=limit,
+            has_more=has_more,
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
 
 
 @router.post(
@@ -100,14 +135,32 @@ async def create_case(
     - 401: Not authenticated
     - 500: Internal server error
     """
-    # TODO: Implement case creation logic
-    # - Validate input data
-    # - Create case record with created_by = current_user.user_id
-    # - Set created_at and updated_at timestamps
-    # - Initialize observation_count to 0
-    # - Return case response
+    try:
+        user_id = UUID(current_user.get("user_id"))
 
-    raise NotImplementedError("Case creation endpoint not yet implemented")
+        case = await CaseService.create_case(db, user_id, case_data)
+
+        return CaseResponse(
+            id=str(case.id),
+            title=case.title,
+            description=case.description,
+            company_name=case.company_name,
+            sector=case.sector,
+            status=case.status,
+            created_by=str(case.created_by),
+            created_at=case.created_at,
+            updated_at=case.updated_at,
+            observation_count=0,
+            metadata=case.metadata,
+        )
+
+    except ValidationException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
 
 
 @router.get(
@@ -139,14 +192,51 @@ async def get_case(
     - 403: Not authorized to view this case
     - 500: Internal server error
     """
-    # TODO: Implement case retrieval logic
-    # - Validate case exists
-    # - Check access permissions based on user role
-    # - For analysts, verify user created the case or is case participant
-    # - Return case details with observation count
-    # - Apply data masking if needed based on disclosure levels
+    try:
+        case_uuid = UUID(case_id)
+        user_id = UUID(current_user.get("user_id"))
+        user_role = current_user.get("role")
 
-    raise NotImplementedError("Case detail endpoint not yet implemented")
+        case = await CaseService.get_case_by_id(db, case_uuid)
+
+        if not case:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Case not found",
+            )
+
+        # Check RBAC
+        from app.models.schemas import UserRole
+        if user_role == UserRole.ANALYST and case.created_by != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to view this case",
+            )
+
+        return CaseResponse(
+            id=str(case.id),
+            title=case.title,
+            description=case.description,
+            company_name=case.company_name,
+            sector=case.sector,
+            status=case.status,
+            created_by=str(case.created_by),
+            created_at=case.created_at,
+            updated_at=case.updated_at,
+            observation_count=len(case.observations),
+            metadata=case.metadata,
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid case ID format",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
 
 
 @router.put(
@@ -187,17 +277,43 @@ async def update_case(
     - 404: Case not found
     - 500: Internal server error
     """
-    # TODO: Implement case update logic
-    # - Validate case exists
-    # - Check permissions:
-    #   - Analyst: only own cases, only draft status
-    #   - Lead Partner: can change status
-    #   - Admin: full access
-    # - Update allowed fields
-    # - Set updated_at timestamp
-    # - Return updated case
+    try:
+        case_uuid = UUID(case_id)
+        user_id = UUID(current_user.get("user_id"))
+        user_role = current_user.get("role")
 
-    raise NotImplementedError("Case update endpoint not yet implemented")
+        case = await CaseService.update_case(db, case_uuid, user_id, user_role, case_data)
+
+        return CaseResponse(
+            id=str(case.id),
+            title=case.title,
+            description=case.description,
+            company_name=case.company_name,
+            sector=case.sector,
+            status=case.status,
+            created_by=str(case.created_by),
+            created_at=case.created_at,
+            updated_at=case.updated_at,
+            observation_count=len(case.observations),
+            metadata=case.metadata,
+        )
+
+    except NotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except AuthorizationException as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ValidationException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid case ID format",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
 
 
 @router.delete(
@@ -226,13 +342,26 @@ async def delete_case(
     - 404: Case not found
     - 500: Internal server error
     """
-    # TODO: Implement case deletion logic
-    # - Validate case exists
-    # - Check permissions:
-    #   - Analyst: only own draft cases
-    #   - Admin: full access
-    # - Perform soft delete (mark as deleted, don't remove from DB)
-    # - Return 204 No Content
-    # - Cascade soft delete to related observations and conflicts
+    try:
+        case_uuid = UUID(case_id)
+        user_id = UUID(current_user.get("user_id"))
+        user_role = current_user.get("role")
 
-    raise NotImplementedError("Case deletion endpoint not yet implemented")
+        await CaseService.delete_case(db, case_uuid, user_id, user_role)
+
+        return None
+
+    except NotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except AuthorizationException as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid case ID format",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
