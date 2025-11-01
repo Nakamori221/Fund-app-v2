@@ -78,7 +78,7 @@ class Case(Base):
         nullable=False,
     )
     is_deleted = Column(Boolean, default=False, nullable=False)
-    metadata = Column(JSON, default={}, nullable=False)
+    extra_data = Column(JSON, default={}, nullable=False)
 
     # Relationships
     created_by_user = relationship("User", back_populates="cases", foreign_keys=[created_by])
@@ -115,7 +115,7 @@ class Observation(Base):
     verified_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     verified_at = Column(DateTime(timezone=True), nullable=True)
     is_deleted = Column(Boolean, default=False, nullable=False)
-    metadata = Column(JSON, default={}, nullable=False)
+    extra_data = Column(JSON, default={}, nullable=False)
 
     # Relationships
     case = relationship("Case", back_populates="observations", foreign_keys=[case_id])
@@ -160,7 +160,7 @@ class Conflict(Base):
     resolved_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     resolution_notes = Column(Text, nullable=True)
-    metadata = Column(JSON, default={}, nullable=False)
+    extra_data = Column(JSON, default={}, nullable=False)
 
     # Relationships
     case = relationship("Case", back_populates="conflicts", foreign_keys=[case_id])
@@ -196,7 +196,7 @@ class Report(Base):
     )
     is_published = Column(Boolean, default=False, nullable=False)
     published_at = Column(DateTime(timezone=True), nullable=True)
-    metadata = Column(JSON, default={}, nullable=False)
+    extra_data = Column(JSON, default={}, nullable=False)
 
     # Relationships
     case = relationship("Case", back_populates="reports", foreign_keys=[case_id])
@@ -221,7 +221,7 @@ class AuditLog(Base):
     timestamp = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     ip_address = Column(String(45), nullable=True)  # IPv4 or IPv6
     user_agent = Column(String(1000), nullable=True)
-    metadata = Column(JSON, default={}, nullable=False)
+    extra_data = Column(JSON, default={}, nullable=False)
 
     def __repr__(self):
         return f"<AuditLog {self.action} on {self.resource_type} {self.resource_id}>"

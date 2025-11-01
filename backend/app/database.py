@@ -30,15 +30,25 @@ class DatabaseManager:
         """Initialize async database engine and session factory"""
         settings = get_settings()
 
-        # Create async SQLAlchemy engine
+        # Create async SQLAlchemy engine with dialect-specific settings
+        engine_kwargs = {
+            "echo": settings.DATABASE_ECHO,
+        }
+
+        # SQLite doesn't support pool_pre_ping, pool_size, etc.
+        if "sqlite" not in settings.DATABASE_URL.lower():
+            engine_kwargs.update({
+                "pool_pre_ping": True,  # Test connection before use
+                "pool_size": 20,
+                "max_overflow": 10,
+                "pool_recycle": 3600,  # Recycle connections after 1 hour
+                "pool_class": QueuePool,
+            })
+        # For SQLite, don't set any pool parameters
+
         self.async_engine = create_async_engine(
             settings.DATABASE_URL,
-            echo=settings.DATABASE_ECHO,
-            pool_pre_ping=True,  # Test connection before use
-            pool_size=20,
-            max_overflow=10,
-            pool_recycle=3600,  # Recycle connections after 1 hour
-            pool_class=QueuePool,
+            **engine_kwargs
         )
 
         # Create async session factory
@@ -56,13 +66,23 @@ class DatabaseManager:
         settings = get_settings()
 
         # Create sync SQLAlchemy engine (for migrations, admin tasks)
+        sync_engine_kwargs = {
+            "echo": settings.DATABASE_ECHO,
+        }
+
+        # SQLite doesn't support pool configuration
+        if "sqlite" not in settings.DATABASE_URL.lower():
+            sync_engine_kwargs.update({
+                "pool_pre_ping": True,
+                "pool_size": 10,
+                "max_overflow": 5,
+                "pool_recycle": 3600,
+            })
+        # For SQLite, don't set any pool parameters
+
         self.engine = create_engine(
             settings.DATABASE_URL,
-            echo=settings.DATABASE_ECHO,
-            pool_pre_ping=True,
-            pool_size=10,
-            max_overflow=5,
-            pool_recycle=3600,
+            **sync_engine_kwargs
         )
 
         # Create sync session factory

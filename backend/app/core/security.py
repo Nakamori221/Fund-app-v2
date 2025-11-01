@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer
 import uuid
 
 from app.config import get_settings
@@ -13,6 +13,12 @@ from app.config import get_settings
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
+
+# HTTPAuthCredentials for type hinting (compatible with newer FastAPI versions)
+class HTTPAuthCredentials:
+    """HTTP Authentication credentials"""
+    def __init__(self, credentials: str):
+        self.credentials = credentials
 
 
 class AuthService:
