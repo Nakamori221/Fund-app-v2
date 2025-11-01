@@ -13,6 +13,7 @@ from app.models.schemas import (
     UserUpdate,
     UserResponse,
     UserListResponse,
+    UserListCursorResponse,
     UserRole,
     RoleInfo,
     RoleListResponse,
@@ -149,6 +150,58 @@ async def list_users(
         users=[UserResponse.model_validate(u) for u in users],
         total=total,
         skip=skip,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/users/paginate/cursor",
+    response_model=UserListCursorResponse,
+    summary="ユーザー一覧を取得（Cursor-based Pagination）",
+    tags=["ユーザー管理"],
+)
+async def list_users_with_cursor(
+    cursor: Optional[str] = Query(None, description="ページングカーソル（最初のページではNone）"),
+    limit: int = Query(20, ge=1, le=100, description="取得レコード数"),
+    role_filter: Optional[UserRole] = Query(None, description="ロール絞り込み"),
+    is_active: Optional[bool] = Query(None, description="アクティブ状態絞り込み"),
+    search: Optional[str] = Query(None, description="名前・メール検索"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> UserListCursorResponse:
+    """
+    ユーザー一覧を Cursor-based Pagination で取得します（RBAC対応）
+
+    **Features**:
+    - O(limit) 時間複雑度（データセットサイズに無依存）
+    - 一貫した順序付け（データ変更中も安定）
+    - スケーラブルな大規模データセット対応
+
+    **RBAC規則**:
+    - ANALYST: 自分自身のみ表示
+    - LEAD_PARTNER: ANALYST ロール以下のユーザーを表示
+    - IC_MEMBER・ADMIN: すべてのユーザーを表示
+
+    **使用例**:
+    1. 最初のページ: `cursor=None`
+    2. 次のページ: 前のレスポンスの `next_cursor` を使用
+    3. `has_more=false` で終了
+    """
+    users, next_cursor, has_more = await UserService.list_users_with_cursor(
+        db=db,
+        requester_id=UUID(current_user["user_id"]),
+        requester_role=UserRole(current_user["role"]),
+        cursor=cursor,
+        limit=limit,
+        role_filter=role_filter,
+        is_active_filter=is_active,
+        search=search,
+    )
+
+    return UserListCursorResponse(
+        users=[UserResponse.model_validate(u) for u in users],
+        next_cursor=next_cursor,
+        has_more=has_more,
         limit=limit,
     )
 

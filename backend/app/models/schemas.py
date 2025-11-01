@@ -119,6 +119,15 @@ class UserListResponse(BaseModel):
     limit: int = Field(..., description="取得数")
 
 
+class UserListCursorResponse(BaseModel):
+    """Cursor-based ユーザー一覧レスポンス"""
+
+    users: List[UserResponse] = Field(..., description="ユーザーリスト")
+    next_cursor: Optional[str] = Field(None, description="次ページへのカーソル（最後のページの場合は None）")
+    has_more: bool = Field(..., description="さらにページがあるかどうか")
+    limit: int = Field(..., description="1ページの取得数")
+
+
 class RoleInfo(BaseModel):
     """ロール情報"""
 
