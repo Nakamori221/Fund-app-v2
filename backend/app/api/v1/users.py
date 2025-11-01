@@ -2,7 +2,7 @@
 
 from uuid import UUID
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -19,6 +19,7 @@ from app.models.schemas import (
     ChangeRoleRequest,
 )
 from app.services.user_service import UserService
+from app.services.audit_log_service import AuditLogService
 
 
 router = APIRouter()
@@ -63,6 +64,7 @@ ROLE_PERMISSIONS = {
 )
 async def create_user(
     user_data: UserCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ) -> UserResponse:
@@ -83,7 +85,20 @@ async def create_user(
 
     try:
         user = await UserService.create_user(db, user_data)
-        return UserResponse.model_validate(user)
+        response = UserResponse.model_validate(user)
+
+        # 監査ログ記録
+        await AuditLogService.log_action(
+            db=db,
+            user_id=UUID(current_user["user_id"]),
+            action="create",
+            resource_type="user",
+            resource_id=user.id,
+            new_values=response.model_dump(),
+            request=request,
+        )
+
+        return response
     except ConflictException as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -190,6 +205,7 @@ async def get_user(
 async def update_user(
     user_id: UUID,
     update_data: UserUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ) -> UserResponse:
@@ -202,6 +218,10 @@ async def update_user(
     - ADMIN: すべてのユーザーを更新可
     """
     try:
+        # 更新前のユーザーを取得（変更前の値を記録するため）
+        old_user = await UserService.get_user_by_id(db, user_id)
+        old_values = UserResponse.model_validate(old_user).model_dump() if old_user else None
+
         user = await UserService.update_user_by_admin(
             db=db,
             user_id=user_id,
@@ -209,7 +229,21 @@ async def update_user(
             requester_role=UserRole(current_user["role"]),
             update_data=update_data,
         )
-        return UserResponse.model_validate(user)
+        response = UserResponse.model_validate(user)
+
+        # 監査ログ記録
+        await AuditLogService.log_action(
+            db=db,
+            user_id=UUID(current_user["user_id"]),
+            action="update",
+            resource_type="user",
+            resource_id=user.id,
+            old_values=old_values,
+            new_values=response.model_dump(),
+            request=request,
+        )
+
+        return response
     except NotFoundException as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -240,6 +274,7 @@ async def update_user(
 )
 async def delete_user(
     user_id: UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
@@ -251,11 +286,27 @@ async def delete_user(
     - 削除はソフトデリート（is_active フラグで無効化）です
     """
     try:
-        await UserService.delete_user(
+        # 削除前のユーザーを取得（変更前の値を記録するため）
+        old_user = await UserService.get_user_by_id(db, user_id)
+        old_values = UserResponse.model_validate(old_user).model_dump() if old_user else None
+
+        deleted_user = await UserService.delete_user(
             db=db,
             user_id=user_id,
             requester_role=UserRole(current_user["role"]),
         )
+
+        # 監査ログ記録
+        await AuditLogService.log_action(
+            db=db,
+            user_id=UUID(current_user["user_id"]),
+            action="delete",
+            resource_type="user",
+            resource_id=user_id,
+            old_values=old_values,
+            request=request,
+        )
+
         return {"message": "ユーザーを削除しました", "user_id": str(user_id)}
     except NotFoundException as e:
         raise HTTPException(
@@ -278,6 +329,7 @@ async def delete_user(
 async def change_user_role(
     user_id: UUID,
     role_request: ChangeRoleRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ) -> UserResponse:
@@ -288,13 +340,32 @@ async def change_user_role(
     - 管理者権限が必要です
     """
     try:
+        # ロール変更前のユーザーを取得（変更前の値を記録するため）
+        old_user = await UserService.get_user_by_id(db, user_id)
+        old_values = UserResponse.model_validate(old_user).model_dump() if old_user else None
+
         user = await UserService.change_user_role(
             db=db,
             user_id=user_id,
             new_role=role_request.role,
             requester_role=UserRole(current_user["role"]),
         )
-        return UserResponse.model_validate(user)
+        response = UserResponse.model_validate(user)
+
+        # 監査ログ記録
+        await AuditLogService.log_action(
+            db=db,
+            user_id=UUID(current_user["user_id"]),
+            action="update",
+            resource_type="user",
+            resource_id=user.id,
+            old_values=old_values,
+            new_values=response.model_dump(),
+            request=request,
+            extra_data={"change_type": "role_change", "new_role": str(role_request.role)},
+        )
+
+        return response
     except NotFoundException as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

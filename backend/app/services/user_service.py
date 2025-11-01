@@ -1,15 +1,17 @@
 """User service - business logic for user management"""
 
 from uuid import UUID
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_, or_
+from fastapi import Request
 
 from app.models.database import User
-from app.models.schemas import UserCreate, UserRole, UserUpdate
+from app.models.schemas import UserCreate, UserRole, UserUpdate, UserResponse
 from app.core.security import AuthService
 from app.core.errors import ValidationException, ConflictException, NotFoundException, AuthorizationException
+from app.services.audit_log_service import AuditLogService
 
 
 class UserService:

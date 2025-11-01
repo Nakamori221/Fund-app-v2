@@ -176,6 +176,79 @@ class CurrentUserResponse(BaseModel):
 
 
 # ============================================================================
+# Audit Log Schemas
+# ============================================================================
+
+class AuditLogBase(BaseModel):
+    """監査ログベース"""
+
+    action: str = Field(
+        ..., description="操作: create, read, update, delete, approve"
+    )
+    resource_type: str = Field(..., description="リソース種別: user, case, observation")
+    resource_id: str = Field(..., description="リソースID")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AuditLogCreate(AuditLogBase):
+    """監査ログ作成"""
+
+    user_id: str = Field(..., description="操作ユーザーID")
+    old_values: Optional[Dict[str, Any]] = Field(None, description="変更前の値")
+    new_values: Optional[Dict[str, Any]] = Field(None, description="変更後の値")
+    ip_address: Optional[str] = Field(None, description="IPアドレス")
+    user_agent: Optional[str] = Field(None, description="ユーザーエージェント")
+    extra_data: Optional[Dict[str, Any]] = Field(None, description="追加データ")
+
+
+class AuditLogResponse(AuditLogBase):
+    """監査ログレスポンス"""
+
+    id: str = Field(..., description="監査ログID")
+    user_id: str = Field(..., description="操作ユーザーID")
+    old_values: Optional[Dict[str, Any]] = Field(None, description="変更前の値")
+    new_values: Optional[Dict[str, Any]] = Field(None, description="変更後の値")
+    timestamp: datetime = Field(..., description="操作日時")
+    ip_address: Optional[str] = Field(None, description="IPアドレス")
+    user_agent: Optional[str] = Field(None, description="ユーザーエージェント")
+    created_at: datetime = Field(..., description="作成日時")
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def convert_id_to_string(cls, v):
+        """UUIDオブジェクトを文字列に変換"""
+        if isinstance(v, UUID):
+            return str(v)
+        return v
+
+    @field_validator("user_id", mode="before")
+    @classmethod
+    def convert_user_id_to_string(cls, v):
+        """UUIDオブジェクトを文字列に変換"""
+        if isinstance(v, UUID):
+            return str(v)
+        return v
+
+    @field_validator("resource_id", mode="before")
+    @classmethod
+    def convert_resource_id_to_string(cls, v):
+        """UUIDオブジェクトを文字列に変換"""
+        if isinstance(v, UUID):
+            return str(v)
+        return v
+
+
+class AuditLogListResponse(BaseModel):
+    """監査ログ一覧レスポンス"""
+
+    logs: List[AuditLogResponse] = Field(..., description="監査ログリスト")
+    total: int = Field(..., description="総件数")
+    skip: int = Field(..., description="スキップ数")
+    limit: int = Field(..., description="取得数")
+
+
+# ============================================================================
 # Case Schemas
 # ============================================================================
 
