@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.core.security import get_current_user
-from app.core.errors import NotFoundException, ValidationException, AuthorizationException
+from app.core.errors import NotFoundException, AuthorizationException
 from app.models.schemas import ConflictResponse, PaginatedResponse
 from app.services.conflict_service import ConflictService
 

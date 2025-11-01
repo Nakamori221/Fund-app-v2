@@ -1,6 +1,5 @@
 """Cases API endpoints"""
 
-from typing import List
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +14,6 @@ from app.models.schemas import (
     PaginatedResponse,
     CaseStatus,
 )
-from app.models.database import Case
 from app.services.case_service import CaseService
 
 

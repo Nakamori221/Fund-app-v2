@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.core.security import AuthService, get_current_user
-from app.core.errors import AuthenticationException, ValidationException, ConflictException, NotFoundException
+from app.core.errors import ValidationException, ConflictException
 from app.models.schemas import (
     LoginRequest,
     TokenResponse,
@@ -170,7 +170,7 @@ async def refresh_token(
             expires_in=expires_in,
         )
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",

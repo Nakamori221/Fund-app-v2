@@ -1,7 +1,6 @@
 """Configuration management for Fund IC Automation System"""
 
 from pydantic_settings import BaseSettings
-from typing import Optional
 from functools import lru_cache
 
 

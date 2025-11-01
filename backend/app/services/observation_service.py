@@ -4,9 +4,9 @@ from uuid import UUID
 from typing import Optional, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import and_, or_
+from sqlalchemy import and_
 
-from app.models.database import Observation, Case, User
+from app.models.database import Observation, Case
 from app.models.schemas import (
     ObservationCreate,
     ObservationUpdate,
@@ -63,7 +63,7 @@ class ObservationService:
             source_tag=observation_data.source_tag or SourceTag.PUBLIC,
             disclosure_level=observation_data.disclosure_level or DisclosureLevel.PRIVATE,
             created_by=user_id,
-            metadata=observation_data.metadata or {},
+            extra_data=observation_data.metadata or {},
         )
 
         db.add(observation)
@@ -88,7 +88,7 @@ class ObservationService:
         - Observation object if found, None otherwise
         """
         stmt = select(Observation).where(
-            and_(Observation.id == observation_id, Observation.is_deleted == False)
+            and_(Observation.id == observation_id, Observation.is_deleted == False)  # noqa: E712
         )
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
@@ -139,7 +139,7 @@ class ObservationService:
         # Build query filters
         filters = [
             Observation.case_id == case_id,
-            Observation.is_deleted == False,
+            Observation.is_deleted == False,  # noqa: E712
         ]
 
         # Apply source tag filter
@@ -234,7 +234,7 @@ class ObservationService:
             observation.disclosure_level = observation_data.disclosure_level
 
         if observation_data.metadata is not None:
-            observation.metadata = observation_data.metadata
+            observation.extra_data = observation_data.metadata
 
         await db.commit()
         await db.refresh(observation)
@@ -383,7 +383,7 @@ class ObservationService:
         # Build search filters
         filters = [
             Observation.case_id == case_id,
-            Observation.is_deleted == False,
+            Observation.is_deleted == False,  # noqa: E712
             Observation.content.ilike(f"%{query}%"),
         ]
 
@@ -421,7 +421,7 @@ class ObservationService:
         - Dictionary with observation statistics
         """
         stmt = select(Observation).where(
-            and_(Observation.case_id == case_id, Observation.is_deleted == False)
+            and_(Observation.case_id == case_id, Observation.is_deleted == False)  # noqa: E712
         )
         result = await db.execute(stmt)
         observations = result.scalars().all()
@@ -450,7 +450,7 @@ class ObservationService:
     async def _get_case(db: AsyncSession, case_id: UUID) -> Optional[Case]:
         """Helper method to get case"""
         stmt = select(Case).where(
-            and_(Case.id == case_id, Case.is_deleted == False)
+            and_(Case.id == case_id, Case.is_deleted == False)  # noqa: E712
         )
         result = await db.execute(stmt)
         return result.scalar_one_or_none()

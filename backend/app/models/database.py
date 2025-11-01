@@ -1,11 +1,9 @@
 """SQLAlchemy ORM models for database tables"""
 
 from datetime import datetime
-from typing import Optional, List
 from sqlalchemy import (
     Column,
     String,
-    Integer,
     Float,
     Boolean,
     DateTime,
@@ -30,6 +28,7 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
     full_name = Column(String(255), nullable=False)
+    department = Column(String(255), nullable=True, default=None)  # 部門（オプション）
     hashed_password = Column(String(255), nullable=False)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.ANALYST)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -228,23 +227,6 @@ class AuditLog(Base):
 
 
 # Index definitions for performance
-from sqlalchemy import Index
-
-# Case indexes
-Index("ix_cases_company_name", Case.company_name)
-Index("ix_cases_status_created_by", Case.status, Case.created_by)
-Index("ix_cases_created_at", Case.created_at)
-
-# Observation indexes
-Index("ix_observations_case_status", Observation.case_id, Observation.disclosure_level)
-Index("ix_observations_created_at", Observation.created_at)
-Index("ix_observations_source_tag", Observation.source_tag)
-
-# Conflict indexes
-Index("ix_conflicts_case_severity", Conflict.case_id, Conflict.severity)
-Index("ix_conflicts_resolved", Conflict.is_resolved, Conflict.detected_at)
-
-# Audit log indexes
-Index("ix_audit_logs_timestamp", AuditLog.timestamp)
-Index("ix_audit_logs_user_action", AuditLog.user_id, AuditLog.action)
-Index("ix_audit_logs_resource", AuditLog.resource_type, AuditLog.resource_id)
+# NOTE: Indexes are defined at the column level instead of globally
+# to avoid "index already exists" errors when using fresh in-memory databases in tests
+# Global Index objects cause issues with SQLAlchemy's metadata caching

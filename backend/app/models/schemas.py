@@ -3,7 +3,8 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from enum import Enum
-from pydantic import BaseModel, Field, ConfigDict
+from uuid import UUID
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 # ============================================================================
@@ -65,9 +66,9 @@ class ConflictType(str, Enum):
 class UserBase(BaseModel):
     """Base user schema"""
 
-    email: str = Field(..., description="User email address")
-    full_name: str = Field(..., description="User full name")
-    role: UserRole = Field(..., description="User role")
+    email: str = Field(..., description="ユーザーメールアドレス")
+    full_name: str = Field(..., description="ユーザーフルネーム")
+    department: Optional[str] = Field(None, description="部門（オプション）")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -75,14 +76,18 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Schema for creating user"""
 
-    password: str = Field(..., description="User password", min_length=8)
+    password: str = Field(..., description="パスワード（8文字以上）", min_length=8)
+    role: UserRole = Field(UserRole.ANALYST, description="ユーザーロール")
 
 
 class UserUpdate(BaseModel):
     """Schema for updating user"""
 
-    full_name: Optional[str] = Field(None, description="User full name")
-    role: Optional[UserRole] = Field(None, description="User role")
+    email: Optional[str] = Field(None, description="メールアドレス")
+    full_name: Optional[str] = Field(None, description="フルネーム")
+    department: Optional[str] = Field(None, description="部門")
+    is_active: Optional[bool] = Field(None, description="アクティブフラグ")
+    role: Optional[UserRole] = Field(None, description="ロール（Adminのみ変更可）")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -90,10 +95,48 @@ class UserUpdate(BaseModel):
 class UserResponse(UserBase):
     """User response schema"""
 
-    id: str = Field(..., description="User ID")
-    created_at: datetime = Field(..., description="Creation timestamp")
-    updated_at: datetime = Field(..., description="Last update timestamp")
-    is_active: bool = Field(True, description="Whether user is active")
+    id: str = Field(..., description="ユーザーID")
+    role: UserRole = Field(..., description="ユーザーロール")
+    is_active: bool = Field(True, description="ユーザーアクティブ状態")
+    created_at: datetime = Field(..., description="作成日時")
+    updated_at: datetime = Field(..., description="更新日時")
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def convert_id_to_string(cls, v):
+        """UUIDオブジェクトを文字列に変換"""
+        if isinstance(v, UUID):
+            return str(v)
+        return v
+
+
+class UserListResponse(BaseModel):
+    """ユーザー一覧レスポンス"""
+
+    users: List[UserResponse] = Field(..., description="ユーザーリスト")
+    total: int = Field(..., description="総ユーザー数")
+    skip: int = Field(..., description="スキップ数")
+    limit: int = Field(..., description="取得数")
+
+
+class RoleInfo(BaseModel):
+    """ロール情報"""
+
+    role: UserRole = Field(..., description="ロール")
+    description: str = Field(..., description="ロール説明")
+    permissions: List[str] = Field(..., description="権限リスト")
+
+
+class RoleListResponse(BaseModel):
+    """ロール一覧レスポンス"""
+
+    roles: List[RoleInfo] = Field(..., description="ロールリスト")
+
+
+class ChangeRoleRequest(BaseModel):
+    """ロール変更リクエスト"""
+
+    role: UserRole = Field(..., description="新しいロール")
 
 
 # ============================================================================

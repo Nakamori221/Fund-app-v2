@@ -8,7 +8,7 @@ from sqlalchemy import and_
 
 from app.models.database import Conflict, Observation, Case
 from app.models.schemas import ConflictType, UserRole
-from app.core.errors import NotFoundException, ValidationException, AuthorizationException
+from app.core.errors import NotFoundException, AuthorizationException
 
 
 class ConflictService:
@@ -59,7 +59,7 @@ class ConflictService:
         stmt = select(Observation).where(
             and_(
                 Observation.case_id == case_id,
-                Observation.is_deleted == False,
+                Observation.is_deleted == False,  # noqa: E712
             )
         )
         result = await db.execute(stmt)
@@ -80,7 +80,7 @@ class ConflictService:
         }
 
         for i, obs1 in enumerate(observations):
-            for obs2 in observations[i + 1 :]:
+            for obs2 in observations[i + 1:]:
                 # Check if conflict already exists
                 conflict_pair = (
                     (obs1.id, obs2.id)
@@ -293,7 +293,7 @@ class ConflictService:
                 and_(
                     Conflict.case_id == case_id,
                     Conflict.severity >= severity_threshold,
-                    Conflict.is_resolved == False,
+                    Conflict.is_resolved == False,  # noqa: E712
                 )
             )
             .order_by(Conflict.severity.desc())
@@ -416,7 +416,7 @@ class ConflictService:
     async def _get_case(db: AsyncSession, case_id: UUID) -> Optional[Case]:
         """Helper method to get case"""
         stmt = select(Case).where(
-            and_(Case.id == case_id, Case.is_deleted == False)
+            and_(Case.id == case_id, Case.is_deleted == False)  # noqa: E712
         )
         result = await db.execute(stmt)
         return result.scalar_one_or_none()

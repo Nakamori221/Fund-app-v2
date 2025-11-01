@@ -47,14 +47,18 @@ class TestUserServiceCreate:
     @pytest.mark.asyncio
     async def test_create_user_invalid_password_too_short(self, test_db: AsyncSession):
         """Test creation fails with password too short"""
-        user_data = UserCreate(
-            email="newuser@test.com",
-            full_name="New User",
-            password="short",  # Too short
-            role=UserRole.ANALYST,
-        )
-        with pytest.raises(ValidationException):
-            await UserService.create_user(test_db, user_data)
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            user_data = UserCreate(
+                email="newuser@test.com",
+                full_name="New User",
+                password="short",  # Too short
+                role=UserRole.ANALYST,
+            )
+
+        # Verify the validation error is for password length
+        assert "String should have at least 8 characters" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_create_user_invalid_email(self, test_db: AsyncSession):

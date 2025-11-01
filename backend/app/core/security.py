@@ -10,13 +10,19 @@ import uuid
 
 from app.config import get_settings
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing with bcrypt 4.x/5.x compatibility
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__ident="2b",  # Force bcrypt 2b identifier for compatibility
+)
 security = HTTPBearer()
+
 
 # HTTPAuthCredentials for type hinting (compatible with newer FastAPI versions)
 class HTTPAuthCredentials:
     """HTTP Authentication credentials"""
+
     def __init__(self, credentials: str):
         self.credentials = credentials
 

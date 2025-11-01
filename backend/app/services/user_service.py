@@ -1,14 +1,15 @@
 """User service - business logic for user management"""
 
 from uuid import UUID
-from typing import Optional
+from typing import Optional, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import and_, or_
 
 from app.models.database import User
-from app.models.schemas import UserCreate, UserResponse, UserRole
+from app.models.schemas import UserCreate, UserRole, UserUpdate
 from app.core.security import AuthService
-from app.core.errors import ValidationException, NotFoundException, ConflictException
+from app.core.errors import ValidationException, ConflictException, NotFoundException, AuthorizationException
 
 
 class UserService:
@@ -235,3 +236,245 @@ class UserService:
         """
         user = await UserService.get_user_by_id(db, user_id)
         return user is not None and user.is_active
+
+    @staticmethod
+    async def list_users(
+        db: AsyncSession,
+        requester_id: UUID,
+        requester_role: UserRole,
+        skip: int = 0,
+        limit: int = 20,
+        role_filter: Optional[UserRole] = None,
+        is_active_filter: Optional[bool] = None,
+        search: Optional[str] = None,
+    ) -> Tuple[List[User], int]:
+        """
+        ユーザー一覧取得（RBAC対応）
+
+        **Parameters**:
+        - db: Database session
+        - requester_id: リクエスター ID
+        - requester_role: リクエスターロール
+        - skip: スキップ数
+        - limit: 取得数
+        - role_filter: ロール絞り込み
+        - is_active_filter: アクティブ状態絞り込み
+        - search: 名前・メール検索
+
+        **Returns**:
+        - (ユーザーリスト, 総数)
+
+        **RBAC規則**:
+        - ANALYST: 自分自身のみ
+        - LEAD_PARTNER: 同じロール以下
+        - IC_MEMBER: すべてのユーザー
+        - ADMIN: すべてのユーザー
+        """
+        filters = []
+
+        # RBAC フィルタリング
+        if requester_role == UserRole.ANALYST:
+            filters.append(User.id == requester_id)
+        elif requester_role == UserRole.LEAD_PARTNER:
+            filters.append(
+                or_(
+                    User.id == requester_id,
+                    User.role == UserRole.ANALYST,
+                )
+            )
+        # IC_MEMBER, ADMIN: フィルタなし（全ユーザー表示）
+
+        # その他フィルタ
+        if role_filter:
+            filters.append(User.role == role_filter)
+
+        if is_active_filter is not None:
+            filters.append(User.is_active == is_active_filter)
+
+        if search:
+            search_pattern = f"%{search}%"
+            filters.append(
+                or_(
+                    User.full_name.ilike(search_pattern),
+                    User.email.ilike(search_pattern),
+                )
+            )
+
+        # 総数取得
+        count_stmt = select(User).where(and_(*filters)) if filters else select(User)
+        count_result = await db.execute(count_stmt)
+        total = len(count_result.fetchall())
+
+        # ページネーション結果取得
+        query = select(User).offset(skip).limit(limit)
+        if filters:
+            query = query.where(and_(*filters))
+        query = query.order_by(User.created_at.desc())
+
+        result = await db.execute(query)
+        users = result.scalars().all()
+
+        return users, total
+
+    @staticmethod
+    async def delete_user(
+        db: AsyncSession,
+        user_id: UUID,
+        requester_role: UserRole,
+    ) -> User:
+        """
+        ユーザーを削除（ソフトデリート）
+
+        **Parameters**:
+        - db: Database session
+        - user_id: 削除するユーザーID
+        - requester_role: リクエスターロール
+
+        **Returns**:
+        - 削除されたUser オブジェクト
+
+        **RBAC規則**:
+        - Admin のみ削除可能
+
+        **Errors**:
+        - NotFoundException: ユーザーが見つかりません
+        - AuthorizationException: 権限不足
+        """
+        # 認可チェック
+        if requester_role != UserRole.ADMIN:
+            raise AuthorizationException("このアクションを実行する権限がありません")
+
+        # ユーザー取得
+        user = await UserService.get_user_by_id(db, user_id)
+        if not user:
+            raise NotFoundException("ユーザーが見つかりません")
+
+        # ソフトデリート
+        user.is_active = False
+        await db.commit()
+        await db.refresh(user)
+
+        return user
+
+    @staticmethod
+    async def update_user_by_admin(
+        db: AsyncSession,
+        user_id: UUID,
+        requester_id: UUID,
+        requester_role: UserRole,
+        update_data: UserUpdate,
+    ) -> User:
+        """
+        ユーザー情報を更新（RBAC対応）
+
+        **Parameters**:
+        - db: Database session
+        - user_id: 更新するユーザーID
+        - requester_id: リクエスターID
+        - requester_role: リクエスターロール
+        - update_data: 更新データ
+
+        **Returns**:
+        - 更新されたUser オブジェクト
+
+        **RBAC規則**:
+        - ANALYST: 自分自身のみ更新可（ロール変更不可）
+        - LEAD_PARTNER: 同じロール以下のユーザーを更新可
+        - ADMIN: すべてのユーザーを更新可
+
+        **Errors**:
+        - NotFoundException: ユーザーが見つかりません
+        - AuthorizationException: 権限不足
+        - ConflictException: メール重複
+        """
+        # ユーザー取得
+        target_user = await UserService.get_user_by_id(db, user_id)
+        if not target_user:
+            raise NotFoundException("ユーザーが見つかりません")
+
+        # 認可チェック
+        is_self = user_id == requester_id
+        is_admin = requester_role == UserRole.ADMIN
+        is_lead_or_above = requester_role in [
+            UserRole.LEAD_PARTNER,
+            UserRole.IC_MEMBER,
+            UserRole.ADMIN,
+        ]
+
+        if not is_self and not is_lead_or_above:
+            raise AuthorizationException("このアクションを実行する権限がありません")
+
+        # ANALYST は自分自身のみ、ロール変更不可
+        if requester_role == UserRole.ANALYST and not is_self:
+            raise AuthorizationException("他のユーザーを更新することはできません")
+
+        if requester_role == UserRole.ANALYST and update_data.role is not None:
+            raise AuthorizationException("ロールを変更する権限がありません")
+
+        # メールアドレス更新時の重複チェック
+        if update_data.email and update_data.email != target_user.email:
+            existing_user = await UserService.get_user_by_email(db, update_data.email)
+            if existing_user:
+                raise ConflictException("このメールアドレスは既に登録されています")
+
+        # フィールド更新
+        if update_data.email is not None:
+            target_user.email = update_data.email
+        if update_data.full_name is not None:
+            target_user.full_name = update_data.full_name
+        if update_data.department is not None:
+            target_user.department = update_data.department
+        if update_data.is_active is not None:
+            target_user.is_active = update_data.is_active
+        if update_data.role is not None:
+            if is_admin:
+                target_user.role = update_data.role
+            else:
+                raise AuthorizationException("ロールを変更する権限がありません")
+
+        await db.commit()
+        await db.refresh(target_user)
+
+        return target_user
+
+    @staticmethod
+    async def change_user_role(
+        db: AsyncSession,
+        user_id: UUID,
+        new_role: UserRole,
+        requester_role: UserRole,
+    ) -> User:
+        """
+        ユーザーのロールを変更
+
+        **Parameters**:
+        - db: Database session
+        - user_id: ユーザーID
+        - new_role: 新しいロール
+        - requester_role: リクエスターロール
+
+        **Returns**:
+        - 更新されたUser オブジェクト
+
+        **RBAC規則**:
+        - Admin のみロール変更可能
+
+        **Errors**:
+        - NotFoundException: ユーザーが見つかりません
+        - AuthorizationException: 権限不足
+        """
+        # 認可チェック
+        if requester_role != UserRole.ADMIN:
+            raise AuthorizationException("このアクションを実行する権限がありません")
+
+        # ユーザー取得
+        user = await UserService.get_user_by_id(db, user_id)
+        if not user:
+            raise NotFoundException("ユーザーが見つかりません")
+
+        # ロール変更
+        user.role = new_role
+        await db.commit()
+        await db.refresh(user)
+
+        return user

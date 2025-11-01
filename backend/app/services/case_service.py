@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_, or_
 
-from app.models.database import Case, User
+from app.models.database import Case
 from app.models.schemas import CaseCreate, CaseUpdate, CaseStatus, UserRole
 from app.core.errors import NotFoundException, ValidationException, AuthorizationException
 
@@ -49,7 +49,7 @@ class CaseService:
             sector=case_data.sector,
             status=case_data.status or CaseStatus.DRAFT,
             created_by=user_id,
-            metadata=case_data.metadata or {},
+            extra_data=case_data.metadata or {},
         )
 
         db.add(case)
@@ -74,7 +74,7 @@ class CaseService:
         - Case object if found, None otherwise
         """
         stmt = select(Case).where(
-            and_(Case.id == case_id, Case.is_deleted == False)
+            and_(Case.id == case_id, Case.is_deleted == False)  # noqa: E712
         )
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
@@ -108,7 +108,7 @@ class CaseService:
         - admin: Can see all cases
         """
         # Build base query
-        filters = [Case.is_deleted == False]
+        filters = [Case.is_deleted == False]  # noqa: E712
 
         # Apply status filter if provided
         if status_filter:
@@ -200,7 +200,7 @@ class CaseService:
             case.status = case_data.status
 
         if case_data.metadata is not None:
-            case.metadata = case_data.metadata
+            case.extra_data = case_data.metadata
 
         await db.commit()
         await db.refresh(case)
@@ -281,7 +281,7 @@ class CaseService:
         **Returns**:
         - Tuple of (cases list, total count)
         """
-        filters = [Case.is_deleted == False]
+        filters = [Case.is_deleted == False]  # noqa: E712
 
         # Apply search filters
         search_filter = or_(
