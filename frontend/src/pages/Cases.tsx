@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import Layout from '../components/Layout/Layout'
 import { fetchCases, CaseSummary } from '../services/dashboardService'
+import { CompletionBar } from '../components/CompletionProgress'
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -11,6 +12,7 @@ import {
   ChartBarIcon,
   ExclamationTriangleIcon,
   ArrowRightIcon,
+  DocumentChartBarIcon,
 } from '@heroicons/react/24/outline'
 
 export default function Cases() {
@@ -160,9 +162,18 @@ export default function Cases() {
                   </span>
                 </div>
 
-                <div className="mt-6 pt-5 border-t border-secondary-100">
+                {/* 充填率バー */}
+                <div className="mt-5 pt-4 border-t border-secondary-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DocumentChartBarIcon className="h-4 w-4 text-secondary-400" />
+                    <span className="text-xs font-medium text-secondary-600">充填率</span>
+                  </div>
+                  <CompletionBar rate={caseItem.completion_rate || 0} size="sm" />
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-secondary-100">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-5">
+                    <div className="flex items-center gap-4">
                       <div className="flex items-center gap-1.5 text-secondary-600">
                         <ChartBarIcon className="h-4 w-4" />
                         <span className="text-sm font-medium">{caseItem.observation_count} 観察</span>
@@ -176,7 +187,7 @@ export default function Cases() {
                     </div>
                     <ArrowRightIcon className="h-5 w-5 text-secondary-300 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
                   </div>
-                  <p className="mt-3 text-xs text-secondary-400">
+                  <p className="mt-2 text-xs text-secondary-400">
                     更新: {formatDate(caseItem.updated_at)}
                   </p>
                 </div>

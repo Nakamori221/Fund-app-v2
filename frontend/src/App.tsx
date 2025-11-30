@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Cases from './pages/Cases'
 import CaseNew from './pages/CaseNew'
+import CaseDetail from './pages/CaseDetail'
 import Observations from './pages/Observations'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
@@ -32,7 +33,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
         <Route path="/cases/new" element={<CaseNew />} />
-        <Route path="/cases/:id" element={<Cases />} />
+        <Route path="/cases/:caseId" element={<CaseDetail />} />
         <Route path="/observations" element={<Observations />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />

@@ -25,6 +25,7 @@ export interface CaseSummary {
   observation_count: number
   conflict_count: number
   updated_at: string
+  completion_rate?: number  // 充填率（0-100）
 }
 
 // モックデータ（実際のAPIが接続できるまで使用）
@@ -74,30 +75,53 @@ export const getMockRecentActivities = (): RecentActivity[] => [
 export const getMockCases = (): CaseSummary[] => [
   {
     case_id: '1',
-    company_name: 'TechStartup Inc.',
+    company_name: 'TechCorp Inc.',
     status: 'active',
     stage: 'early',
     observation_count: 25,
     conflict_count: 2,
     updated_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    completion_rate: 72,
   },
   {
     case_id: '2',
-    company_name: 'AI Solutions Ltd.',
+    company_name: 'HealthAI株式会社',
     status: 'active',
     stage: 'growth',
     observation_count: 42,
     conflict_count: 1,
     updated_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    completion_rate: 45,
   },
   {
     case_id: '3',
-    company_name: 'CloudPlatform Co.',
+    company_name: 'GreenEnergy Co.',
     status: 'on_hold',
-    stage: 'late',
-    observation_count: 38,
-    conflict_count: 3,
+    stage: 'seed',
+    observation_count: 10,
+    conflict_count: 0,
     updated_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+    completion_rate: 25,
+  },
+  {
+    case_id: '4',
+    company_name: 'FinTech Solutions',
+    status: 'active',
+    stage: 'late',
+    observation_count: 58,
+    conflict_count: 0,
+    updated_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    completion_rate: 92,
+  },
+  {
+    case_id: '5',
+    company_name: 'EdTech Labs',
+    status: 'active',
+    stage: 'early',
+    observation_count: 15,
+    conflict_count: 1,
+    updated_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+    completion_rate: 38,
   },
 ]
 
