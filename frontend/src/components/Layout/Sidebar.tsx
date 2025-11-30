@@ -8,6 +8,9 @@ import {
   DocumentTextIcon,
   ChartBarIcon,
   Cog6ToothIcon,
+  CloudArrowUpIcon,
+  DocumentChartBarIcon,
+  ArrowsRightLeftIcon,
 } from '@heroicons/react/24/outline'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
@@ -17,6 +20,12 @@ const navigation = [
   { name: '案件管理', href: '/cases', icon: BriefcaseIcon },
   { name: '観察記録', href: '/observations', icon: DocumentTextIcon },
   { name: 'レポート', href: '/reports', icon: ChartBarIcon },
+]
+
+const demoNavigation = [
+  { name: '資料アップロード', href: '/upload', icon: CloudArrowUpIcon },
+  { name: 'ICレポート', href: '/report-preview', icon: DocumentChartBarIcon },
+  { name: 'データフロー', href: '/data-flow', icon: ArrowsRightLeftIcon },
 ]
 
 function classNames(...classes: string[]) {
@@ -146,6 +155,27 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: { sidebarOpen: 
                         className={classNames(
                           location.pathname === item.href
                             ? 'bg-secondary-800 text-white'
+                            : 'text-secondary-400 hover:text-white hover:bg-secondary-800',
+                          'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors duration-200'
+                        )}
+                      >
+                        <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
+                        {item.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+              <li>
+                <div className="text-xs font-semibold leading-6 text-secondary-500 uppercase tracking-wider">デモ機能</div>
+                <ul role="list" className="-mx-2 mt-2 space-y-1">
+                  {demoNavigation.map((item) => (
+                    <li key={item.name}>
+                      <Link
+                        to={item.href}
+                        className={classNames(
+                          location.pathname === item.href
+                            ? 'bg-primary-600 text-white'
                             : 'text-secondary-400 hover:text-white hover:bg-secondary-800',
                           'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors duration-200'
                         )}

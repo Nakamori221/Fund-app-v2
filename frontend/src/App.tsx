@@ -8,6 +8,9 @@ import CaseDetail from './pages/CaseDetail'
 import Observations from './pages/Observations'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
+import ReportPreview from './pages/ReportPreview'
+import DocumentUpload from './pages/DocumentUpload'
+import DataFlow from './pages/DataFlow'
 import { useAuthStore } from './stores/authStore'
 
 function App() {
@@ -37,6 +40,10 @@ function App() {
         <Route path="/observations" element={<Observations />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
+        {/* デモ用新規ページ */}
+        <Route path="/report-preview" element={<ReportPreview />} />
+        <Route path="/upload" element={<DocumentUpload />} />
+        <Route path="/data-flow" element={<DataFlow />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
