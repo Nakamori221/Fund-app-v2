@@ -1,0 +1,3 @@
+﻿company:sample_co,company,kpi,revenue_arr,number,7800000,,,,2025-09-30,ANL,calc:arr_model,LP_NDA,,Step1辞書ベース仮入力
+company:sample_co,company,kpi,gross_margin_pct,number,,,,'percent',2025-09-30,INT,,LP_NDA,0.7,pending
+company:sample_co,company,kpi,revenue_arr,number,7800000,,,,2025-09-30,ANL,calc:arr_model,LP_NDA,,Step1辞書ベース仮入力
